@@ -116,19 +116,6 @@ def logout():
     flash("Logged out.", "info")
     return redirect(url_for("login"))
 
-# @app.route("/dashboard")
-# @require_login
-# def dashboard():
-    # user_id = session["user_id"]
-    # role = session["role"]
-# 
-    # if role == "admin":
-        # vaults = query_all("SELECT vault_id, vault_name, description, user_id FROM vaults WHERE is_deleted = 0")
-    # else:
-        # vaults = query_all("SELECT vault_id, vault_name, description, user_id FROM vaults WHERE user_id = %s AND is_deleted = 0", (user_id,))
-# 
-    # return render_template("dashboard.html", vaults=vaults, role=role)
-
 @app.route("/dashboard")
 @require_login
 def dashboard():
@@ -136,30 +123,11 @@ def dashboard():
     role = session["role"]
 
     if role == "admin":
-        vaults = query_all("""
-            SELECT 
-                v.vault_id,
-                v.vault_name,
-                v.description,
-                u.username   AS owner_username
-            FROM vaults v
-            JOIN users u ON v.user_id = u.user_id
-            WHERE v.is_deleted = 0
-        """)
+        vaults = query_all("SELECT vault_id, vault_name, description, user_id FROM vaults WHERE is_deleted = 0")
     else:
-        vaults = query_all("""
-            SELECT 
-                v.vault_id,
-                v.vault_name,
-                v.description,
-                u.username   AS owner_username
-            FROM vaults v
-            JOIN users u ON v.user_id = u.user_id
-            WHERE v.user_id = %s AND v.is_deleted = 0
-        """, (user_id,))
+        vaults = query_all("SELECT vault_id, vault_name, description, user_id FROM vaults WHERE user_id = %s AND is_deleted = 0", (user_id,))
 
     return render_template("dashboard.html", vaults=vaults, role=role)
-
 
 # View vault and its passwords
 @app.route("/vaults/<int:vault_id>")
@@ -180,25 +148,10 @@ def view_vault(vault_id):
         return redirect(url_for("logout"))
 
     # permission: admin sees all, user only their vault
-    # if role != "admin":
-    #     v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND user_id = %s AND is_deleted = 0", (vault_id, user_id))
-    # else:
-    #     v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND is_deleted = 0", (vault_id,))
     if role != "admin":
-     v = query_one("""
-        SELECT v.vault_id, v.vault_name, u.username
-        FROM vaults v
-        JOIN users u ON v.user_id = u.user_id
-        WHERE v.vault_id = %s AND v.user_id = %s AND v.is_deleted = 0
-     """, (vault_id, user_id))
+        v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND user_id = %s AND is_deleted = 0", (vault_id, user_id))
     else:
-     v = query_one("""
-        SELECT v.vault_id, v.vault_name, u.username
-        FROM vaults v
-        JOIN users u ON v.user_id = u.user_id
-        WHERE v.vault_id = %s AND v.is_deleted = 0
-    """, (vault_id,))
-
+        v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND is_deleted = 0", (vault_id,))
 
     if not v:
         flash("Vault not found or access denied.", "danger")
