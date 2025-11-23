@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card p-4 shadow-sm">
+        <h3 class="mb-3">🔐 Login (Test)</h3>
+        <form method="POST" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input class="form-control" name="username" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Master Password</label>
+            <input class="form-control" type="password" name="password" required />
+            <div class="small-muted mt-1">This is a test; do not use production secrets.</div>
+          </div>
+          <button class="btn btn-primary">Login</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
