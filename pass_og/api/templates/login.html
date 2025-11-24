@@ -10,11 +10,45 @@
             <input class="form-control" name="username" required />
           </div>
           <div class="mb-3">
+              <label class="form-label">Master Password</label>
+              <div class="input-group">
+                  <input class="form-control" 
+                        type="password" 
+                        name="password" 
+                        id="login_pw" 
+                        required />
+
+                  <button type="button" 
+                          class="btn btn-outline-secondary"
+                          id="login_eye"
+                          onclick="togglePassword('login_pw', 'login_eye')">
+                      👁️
+                  </button>
+              </div>
+
+              <div class="small text-muted mt-1">
+                  This is a test; do not use production secrets.
+              </div>
+           </div>
+
+          <!-- <div class="mb-3">
             <label class="form-label">Master Password</label>
             <input class="form-control" type="password" name="password" required />
             <div class="small-muted mt-1">This is a test; do not use production secrets.</div>
-          </div>
+          </div> -->
           <button class="btn btn-primary">Login</button>
+          <div class="mt-3 text-center">
+              {% if admin_exists %}
+                  <a href="{{ url_for('signup') }}" class="btn btn-outline-secondary btn-sm">
+                      Sign Up
+                  </a>
+              {% else %}
+                  <a href="{{ url_for('signup') }}" class="btn btn-outline-primary btn-sm">
+                      Create Admin Account
+                  </a>
+              {% endif %}
+          </div>
+
         </form>
       </div>
     </div>

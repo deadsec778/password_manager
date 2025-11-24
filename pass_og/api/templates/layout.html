@@ -63,6 +63,9 @@
                     <a class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}"
                        href="{{ url_for('admin_users') }}">Admin Panel</a>
                 </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ url_for('admin_add_user') }}">Add User</a>
+                </li>
                 {% endif %}
             </ul>
 
@@ -106,6 +109,33 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePassword(fieldId, eyeId) {
+    const field = document.getElementById(fieldId);
+    const eye = document.getElementById(eyeId);
 
+    if (field.type === "password") {
+        field.type = "text";
+        eye.innerHTML = "🙈";  // hide icon
+    } else {
+        field.type = "password";
+        eye.innerHTML = "👁️"; // show icon
+    }
+}
+</script>
+<script>
+function togglePasswordRow(pid) {
+    const mask = document.getElementById("mask_" + pid);
+    const real = document.getElementById("real_" + pid);
+
+    if (real.style.display === "none") {
+        real.style.display = "inline";
+        mask.style.display = "none";
+    } else {
+        real.style.display = "none";
+        mask.style.display = "inline";
+    }
+}
+</script>
 </body>
 </html>

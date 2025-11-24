@@ -68,7 +68,9 @@ def query_one(sql, params=()):
     cur.close()
     conn.close()
     return row
-
+def admin_exists():
+    row = query_one("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+    return row[0] > 0
 # -------------------------
 # Routes
 # -------------------------
@@ -91,22 +93,36 @@ def login():
             return redirect(url_for("dashboard"))
         else:
             flash("Login failed. Check username/password.", "danger")
-            return render_template("login.html")
-    return render_template("login.html")
+            return render_template("login.html", admin_exists=admin_exists())
+
+    return render_template("login.html", admin_exists=admin_exists())
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
+    # check if admin already exists
+    is_first_admin = not admin_exists()
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
+
         if not username or not email or not password:
             flash("Please fill all fields.", "warning")
-            return render_template("signup.html")
-        register_user(username, email, password, role="user")
-        flash("Account created! You can now login.", "success")
+            return render_template("signup.html", is_first_admin=is_first_admin)
+
+        # if no admin exists, first signup becomes admin
+        if is_first_admin:
+            role = "admin"
+        else:
+            role = "user"
+
+        register_user(username, email, password, role)
+        flash(f"Account created successfully!", "success")
         return redirect(url_for("login"))
-    return render_template("signup.html")
+
+    return render_template("signup.html", is_first_admin=is_first_admin)
+
 
 @app.route("/logout")
 @require_login
@@ -168,104 +184,71 @@ def view_vault(vault_id):
     user_id = session["user_id"]
     role = session["role"]
     user_cipher = get_cipher_for_session()
+    admin_cipher = None
 
-    # make sure admin key exists when needed
     try:
         admin_cipher = get_admin_cipher()
-    except FileNotFoundError:
-        admin_cipher = None
+    except:
+        pass
 
-    if user_cipher is None:
-        flash("Encryption context missing. Please login again.", "warning")
-        return redirect(url_for("logout"))
-
-    # permission: admin sees all, user only their vault
-    # if role != "admin":
-    #     v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND user_id = %s AND is_deleted = 0", (vault_id, user_id))
-    # else:
-    #     v = query_one("SELECT vault_id, vault_name FROM vaults WHERE vault_id = %s AND is_deleted = 0", (vault_id,))
-    if role != "admin":
-     v = query_one("""
-        SELECT v.vault_id, v.vault_name, u.username
-        FROM vaults v
-        JOIN users u ON v.user_id = u.user_id
-        WHERE v.vault_id = %s AND v.user_id = %s AND v.is_deleted = 0
-     """, (vault_id, user_id))
-    else:
-     v = query_one("""
-        SELECT v.vault_id, v.vault_name, u.username
-        FROM vaults v
-        JOIN users u ON v.user_id = u.user_id
-        WHERE v.vault_id = %s AND v.is_deleted = 0
-    """, (vault_id,))
+    q = request.args.get("q", "").strip().lower()
 
 
-    if not v:
-        flash("Vault not found or access denied.", "danger")
-        return redirect(url_for("dashboard"))
-
-    # load passwords (join to get owner username)
+    # permission check
     if role == "admin":
-        rows = query_all("""
-            SELECT 
-                p.password_id,
-                p.user_id,
-                u.username AS owner_username,
-                p.service_name,
-                p.username,
-                p.password_user_enc,
-                p.password_admin_enc,
-                p.url,
-                p.notes,
-                p.updated_at
-            FROM passwords p
+        base_sql = """
+            SELECT p.password_id, p.user_id, u.username,
+                   p.service_name, p.username,
+                   p.password_user_enc, p.password_admin_enc,
+                   p.url, p.notes, p.updated_at
+            FROM passwords p 
             JOIN users u ON p.user_id = u.user_id
             WHERE p.vault_id = %s AND p.is_deleted = 0
-        """, (vault_id,))
+        """
+        params = (vault_id,)
     else:
-        rows = query_all("""
-            SELECT 
-                p.password_id,
-                p.user_id,
-                u.username AS owner_username,
-                p.service_name,
-                p.username,
-                p.password_user_enc,
-                p.password_admin_enc,
-                p.url,
-                p.notes,
-                p.updated_at
+        base_sql = """
+            SELECT p.password_id, p.user_id, u.username, 
+                   p.service_name, p.username,
+                   p.password_user_enc, p.password_admin_enc,
+                   p.url, p.notes, p.updated_at
             FROM passwords p
             JOIN users u ON p.user_id = u.user_id
             WHERE p.vault_id = %s AND p.user_id = %s AND p.is_deleted = 0
-        """, (vault_id, user_id))
+        """
+        params = (vault_id, user_id)
 
+    rows = query_all(base_sql, params)
+
+    # If search is used → filter in python (fast enough)
+    if q:
+        rows = [
+            r for r in rows
+            if q in r[2].lower()      # owner username
+            or q in r[3].lower()      # service
+            or q in r[4].lower()      # username
+            or (r[7] and q in r[7].lower())  # url
+            or (r[8] and q in r[8].lower())  # notes
+        ]
+
+    # decrypt after filtering
     passwords = []
     for row in rows:
-        # unpack exactly as selected above
-        (pid, owner_uid, owner_username, service, uname,
-         enc_user, enc_admin, url, notes, updated_at) = row
+        pid, owner_uid, owner_username, service, uname, enc_user, enc_admin, url, notes, updated_at = row
 
-        pw = None
-        if role == "admin":
-            # admin decrypts with admin cipher (if present)
-            if admin_cipher:
-                try:
-                    pw = admin_cipher.decrypt(enc_admin.encode()).decode()
-                except Exception:
-                    pw = "🔒 (admin cannot decrypt - corrupted?)"
-            else:
-                pw = "🔒 (admin key not found)"
+        if role == "admin" and admin_cipher:
+            try:
+                pw = admin_cipher.decrypt(enc_admin.encode()).decode()
+            except:
+                pw = "🔒"
         else:
-            # normal user decrypts with their own session cipher
             try:
                 pw = user_cipher.decrypt(enc_user.encode()).decode()
-            except Exception:
-                pw = "🔒 (cannot decrypt with your master key)"
+            except:
+                pw = "🔒"
 
         passwords.append({
             "password_id": pid,
-            "owner_id": owner_uid,
             "owner_username": owner_username,
             "service": service,
             "username": uname,
@@ -275,7 +258,25 @@ def view_vault(vault_id):
             "updated_at": updated_at
         })
 
-    return render_template("vault.html", vault=v, passwords=passwords, role=role)
+
+    # --- Pagination ---
+    page = int(request.args.get("page", 1))
+    per_page = 20  # you can make it 10, 25, 50, etc.
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    paged_passwords = passwords[start:end]
+
+    total_pages = (len(passwords) + per_page - 1) // per_page
+
+    return render_template(
+    "vault.html",
+    vault=(vault_id,"Vault"),
+    passwords=paged_passwords,
+    page=page,
+    total_pages=total_pages,
+    role=role
+)
 
 # Add vault
 @app.route("/vaults/add", methods=["GET", "POST"])
@@ -432,8 +433,46 @@ def trash():
 def admin_users():
     if session.get("role") != "admin":
         abort(403)
+
+    q = request.args.get("q", "").strip().lower()
+
     rows = query_all("SELECT user_id, username, email, role, status FROM users")
-    return render_template("admin_users.html", users=rows)
+
+    if q:
+        rows = [
+            r for r in rows
+            if q in r[1].lower() or q in r[2].lower() or q in r[3].lower()
+        ]
+
+    return render_template("admin_users.html", users=rows, q=q)
+
+
+
+#add user route only for  the admins
+@app.route("/admin/add_user", methods=["GET", "POST"])
+@require_login
+def admin_add_user():
+    if session.get("role") != "admin":
+        abort(403)
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        role = request.form.get("role", "user")
+
+        if not username or not email or not password:
+            flash("All fields are required.", "warning")
+            return redirect(url_for("admin_add_user"))
+
+        # use your existing register logic
+        register_user(username, email, password, role)
+
+        flash("User created successfully!", "success")
+        return redirect(url_for("admin_users"))
+
+    return render_template("admin_add_user.html")
+
 
 # Simple restore route for password (admin or owner)
 @app.route("/passwords/<int:password_id>/restore", methods=["POST"])
