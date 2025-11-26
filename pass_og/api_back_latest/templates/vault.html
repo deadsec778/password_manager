@@ -70,17 +70,17 @@
     </div>
 </div>
 <div class="mt-3 text-center">
-     {% if page|int > 1 %}
-     <a class="btn btn-outline-primary btn-sm"
-         href="?page={{ page|int - 1 }}&q={{ request.args.get('q','') }}">⬅ Prev</a>
-     {% endif %}
+    {% if page > 1 %}
+    <a class="btn btn-outline-primary btn-sm"
+       href="?page={{ page - 1 }}&q={{ request.args.get('q','') }}">⬅ Prev</a>
+    {% endif %}
 
     <span class="mx-2">Page {{ page }} of {{ total_pages }}</span>
 
-     {% if page|int < total_pages|int %}
-     <a class="btn btn-outline-primary btn-sm"
-         href="?page={{ page|int + 1 }}&q={{ request.args.get('q','') }}">Next ➡</a>
-     {% endif %}
+    {% if page < total_pages %}
+    <a class="btn btn-outline-primary btn-sm"
+       href="?page={{ page + 1 }}&q={{ request.args.get('q','') }}">Next ➡</a>
+    {% endif %}
 </div>
 
 

@@ -3,15 +3,6 @@ import sys
 import os
 import uuid
 import functools
-try:
-    import pandas as pd
-    PANDAS_AVAILABLE = True
-except Exception:
-    pd = None
-    PANDAS_AVAILABLE = False
-import csv
-from io import TextIOWrapper
-
 
 from flask import (
     Flask, request, render_template, redirect,
@@ -197,12 +188,11 @@ def view_vault(vault_id):
 
     try:
         admin_cipher = get_admin_cipher()
-        print(f"DEBUG: Admin cipher loaded successfully")
-    except Exception as e:
-        print(f"DEBUG: Admin cipher error: {e}")
+    except:
         pass
 
     q = request.args.get("q", "").strip().lower()
+
 
     # permission check
     if role == "admin":
@@ -229,7 +219,6 @@ def view_vault(vault_id):
         params = (vault_id, user_id)
 
     rows = query_all(base_sql, params)
-    print(f"DEBUG: Found {len(rows)} passwords in vault {vault_id}")
 
     # If search is used → filter in python (fast enough)
     if q:
@@ -246,27 +235,16 @@ def view_vault(vault_id):
     passwords = []
     for row in rows:
         pid, owner_uid, owner_username, service, uname, enc_user, enc_admin, url, notes, updated_at = row
-        
-        print(f"DEBUG: Processing password ID {pid}, owner: {owner_username} (ID: {owner_uid})")
-        print(f"DEBUG - Admin cipher available: {admin_cipher is not None}")
-        print(f"DEBUG - enc_admin exists: {enc_admin is not None}")
-        print(f"DEBUG - enc_user exists: {enc_user is not None}")
 
         if role == "admin" and admin_cipher:
             try:
-                print(f"DEBUG: Attempting admin decryption for password {pid}")
                 pw = admin_cipher.decrypt(enc_admin.encode()).decode()
-                print(f"DEBUG: Admin decryption SUCCESS for password {pid}")
-            except Exception as e:
-                print(f"DEBUG: Admin decryption FAILED for password {pid}: {e}")
+            except:
                 pw = "🔒"
         else:
             try:
-                print(f"DEBUG: Attempting user decryption for password {pid}")
                 pw = user_cipher.decrypt(enc_user.encode()).decode()
-                print(f"DEBUG: User decryption SUCCESS for password {pid}")
-            except Exception as e:
-                print(f"DEBUG: User decryption FAILED for password {pid}: {e}")
+            except:
                 pw = "🔒"
 
         passwords.append({
@@ -279,8 +257,6 @@ def view_vault(vault_id):
             "notes": notes,
             "updated_at": updated_at
         })
-
-    # ... rest of your pagination code ...
 
 
     # --- Pagination ---
@@ -471,24 +447,6 @@ def admin_users():
     return render_template("admin_users.html", users=rows, q=q)
 
 
-@app.route("/admin/import_passwords")
-@require_login
-def import_passwords_page():
-    # Admin-only landing page to pick a vault to import into
-    if session.get("role") != "admin":
-        abort(403)
-
-    # List all vaults with owner info
-    rows = query_all("""
-        SELECT v.vault_id, v.vault_name, v.description, u.username
-        FROM vaults v JOIN users u ON v.user_id = u.user_id
-        WHERE v.is_deleted = 0
-    """)
-
-    # rows: list of tuples (vault_id, vault_name, description, owner_username)
-    return render_template("import_passwords.html", vaults=rows)
-
-
 
 #add user route only for  the admins
 @app.route("/admin/add_user", methods=["GET", "POST"])
@@ -537,192 +495,6 @@ def restore_password_route(password_id):
     else:
         flash("You cannot restore this password.", "danger")
     return redirect(request.referrer or url_for("trash"))
-
-#import password with the csv file
-@app.route("/vaults/<int:vault_id>/import", methods=["GET"])
-@require_login
-def import_password_mapping_page(vault_id):
-    if session.get("role") != "admin":
-        abort(403)
-
-    # Admin selects a file first
-    return render_template("password_import.html", vault_id=vault_id)
-#iport password with the csv file - step 2
-@app.route("/vaults/<int:vault_id>/import_preview", methods=["POST"])
-@require_login
-def import_preview(vault_id):
-    if session.get("role") != "admin":
-        abort(403)
-
-    uploaded = request.files.get("file")
-    if not uploaded:
-        flash("Upload a CSV or Excel file.", "danger")
-        return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-
-    filename = uploaded.filename.lower()
-
-    # CSV
-    if filename.endswith(".csv"):
-        text = TextIOWrapper(uploaded.stream, encoding="utf-8")
-        reader = csv.DictReader(text)
-        rows = list(reader)
-        header = list(reader.fieldnames)
-
-    # Excel
-    elif filename.endswith(".xlsx"):
-        if not PANDAS_AVAILABLE:
-            flash("Install pandas for XLSX import.", "danger")
-            return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-        uploaded.stream.seek(0)
-        df = pd.read_excel(uploaded.stream)
-        rows = df.to_dict(orient="records")
-        header = list(df.columns)
-
-    else:
-        flash("Only .csv or .xlsx files allowed.", "danger")
-        return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-
-    # Coerce header and row keys/values to plain Python types (strings) so session
-    # JSON serialization doesn't fail when keys are ints or values are numpy types.
-    safe_header = [str(h) for h in header]
-
-    safe_rows = []
-    for r in rows:
-        safe_r = {}
-        # r may be a dict-like (from csv.DictReader or pandas)
-        for k, v in r.items():
-            # convert keys and values to strings, map None to empty string
-            sk = str(k)
-            if v is None:
-                sv = ""
-            else:
-                sv = str(v)
-            safe_r[sk] = sv
-        safe_rows.append(safe_r)
-
-    session["import_rows"] = safe_rows
-    session["import_header"] = safe_header
-
-    return render_template(
-        "import_mapping.html",
-        vault_id=vault_id,
-        header=header
-    )
-
-# Final import step to the DB
-@app.route("/vaults/<int:vault_id>/import_apply", methods=["POST"])
-@require_login
-def import_apply(vault_id):
-    if session.get("role") != "admin":
-        abort(403)
-
-    rows = session.get("import_rows")
-    header = session.get("import_header")
-
-    if not rows:
-        flash("Import session expired. Please upload again.", "danger")
-        return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-
-    # Column mappings
-    map_service = request.form.get("map_service")
-    map_username = request.form.get("map_username")
-    map_password = request.form.get("map_password")
-    map_url = request.form.get("map_url")
-    map_notes = request.form.get("map_notes")
-
-    if not map_service or not map_username or not map_password:
-        flash("Service, Username and Password mappings are required.", "danger")
-        return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-
-    # Load admin cipher
-    try:
-        admin_cipher = get_admin_cipher()
-        print(f"IMPORT DEBUG: Admin cipher loaded successfully")
-    except Exception as e:
-        print(f"IMPORT DEBUG: Admin cipher error: {e}")
-        flash("Admin key missing.", "danger")
-        return redirect(url_for("import_password_mapping_page", vault_id=vault_id))
-
-    # Get the vault owner
-    vault_info = query_one("SELECT user_id, vault_name FROM vaults WHERE vault_id = %s", (vault_id,))
-    if not vault_info:
-        flash("Vault not found.", "danger")
-        return redirect(url_for("dashboard"))
-    
-    vault_owner_id = vault_info[0]
-    vault_name = vault_info[1]
-    print(f"IMPORT DEBUG: Importing to vault '{vault_name}' owned by user ID {vault_owner_id}")
-    
-    # Get cipher for the vault owner
-    try:
-        vault_owner_cipher = get_cipher_for_user(vault_owner_id)
-        print(f"IMPORT DEBUG: Vault owner cipher loaded successfully")
-    except Exception as e:
-        print(f"IMPORT DEBUG: Vault owner cipher error: {e}")
-        vault_owner_cipher = None
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    count_ok = 0
-    count_fail = 0
-
-    for i, r in enumerate(rows):
-        try:
-            service = str(r.get(map_service, "")).strip()
-            uname = str(r.get(map_username, "")).strip()
-            plain = str(r.get(map_password, "")).strip()
-            url = str(r.get(map_url, "")).strip() if map_url else ""
-            notes = str(r.get(map_notes, "")).strip() if map_notes else ""
-
-            print(f"IMPORT DEBUG: Processing row {i+1}, service: {service}, username: {uname}")
-
-            # Encrypt for admin (recovery) - this is crucial for admin viewing
-            enc_admin = admin_cipher.encrypt(plain.encode()).decode()
-            print(f"IMPORT DEBUG: Admin encryption successful")
-
-            # Encrypt for vault owner
-            enc_user = None
-            if vault_owner_cipher:
-                try:
-                    enc_user = vault_owner_cipher.encrypt(plain.encode()).decode()
-                    print(f"IMPORT DEBUG: User encryption successful")
-                except Exception as e:
-                    print(f"IMPORT DEBUG: User encryption failed: {e}")
-                    enc_user = None
-            else:
-                print(f"IMPORT DEBUG: No vault owner cipher available")
-
-            cur.execute("""
-                INSERT INTO passwords
-                (vault_id, user_id, service_name, username,
-                 password_user_enc, password_admin_enc,
-                 url, notes, is_deleted)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,0)
-            """, (
-                vault_id,
-                vault_owner_id,  # Use vault owner's ID
-                service,
-                uname,
-                enc_user,
-                enc_admin,
-                url,
-                notes
-            ))
-
-            count_ok += 1
-            print(f"IMPORT DEBUG: Row {i+1} imported successfully")
-
-        except Exception as e:
-            print(f"IMPORT DEBUG: Row {i+1} import failed: {e}")
-            count_fail += 1
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    flash(f"Import finished. Success: {count_ok}, Failed: {count_fail}", "success")
-    return redirect(url_for("view_vault", vault_id=vault_id))
 
 # Run dev server
 if __name__ == "__main__":

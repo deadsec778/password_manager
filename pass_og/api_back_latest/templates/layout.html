@@ -67,13 +67,6 @@
                   <a class="nav-link" href="{{ url_for('admin_add_user') }}">Add User</a>
                 </li>
                 {% endif %}
-                {% if session.role == "admin" %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}"
-                    href="{{ url_for('import_passwords_page') }}">Import Passwords</a>
-                </li>
-                {% endif %}
-
             </ul>
 
             <ul class="navbar-nav ms-auto">

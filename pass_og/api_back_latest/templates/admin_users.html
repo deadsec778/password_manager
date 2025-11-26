@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h3>Users</h3>
+  <a href="{{ url_for('admin_add_user') }}" class="btn btn-primary mb-3">
+    ➕ Add New User
+</a>
+<form method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control"
+               placeholder="Search username, email, role..."
+               value="{{ request.args.get('q','') }}">
+        <button class="btn btn-outline-primary">Search</button>
+    </div>
+</form>
+
+
+
+  <table class="table">
+    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+        <tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }}</td><td>{{ u[3] }}</td><td>{{ u[4] }}</td></tr>
+      {% else %}
+        <tr><td colspan="5">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
