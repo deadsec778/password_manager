@@ -3,19 +3,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>{{ vault[1] }}</h3>
-    <div>
-        <a class="btn btn-sm btn-success" href="{{ url_for('add_password', vault_id=vault[0]) }}">+ Add Password</a>
-        {% if role == 'admin' %}
-        <form method="POST"
-              action="{{ url_for('soft_delete_vault_route', vault_id=vault[0]) }}"
-              style="display:inline;">
-            <button class="btn btn-sm btn-outline-danger" type="submit"
-                    onclick="return confirm('Move vault to trash?')">
-                🗑 Delete
-            </button>
-        </form>
-        {% endif %}
-    </div>
+    <a class="btn btn-sm btn-success" href="{{ url_for('add_password', vault_id=vault[0]) }}">+ Add Password</a>
 </div>
 
 <form method="GET" class="mb-3">

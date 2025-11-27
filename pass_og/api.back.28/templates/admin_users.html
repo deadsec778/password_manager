@@ -16,18 +16,10 @@
 
 
   <table class="table">
-    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
     <tbody>
       {% for u in users %}
-        <tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }}</td><td>{{ u[3] }}</td><td>{{ u[4] }}</td><td>
-            <a href="{{ url_for('modify_user', user_id=u[0]) }}"
-              class="btn btn-sm btn-outline-primary">
-          ✏️   Edit
-            </a>
-        </td></tr>
-
-        
-
+        <tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }}</td><td>{{ u[3] }}</td><td>{{ u[4] }}</td></tr>
       {% else %}
         <tr><td colspan="5">No users found.</td></tr>
       {% endfor %}
