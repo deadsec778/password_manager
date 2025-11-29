@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>🗑 Deleted Vaults (Admin Only)</h3>
+</div>
+
+<form method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="q" value="{{ q }}"
+               class="form-control" placeholder="Search vault name, owner, or description...">
+        <button class="btn btn-outline-primary">Search</button>
+    </div>
+</form>
+
+<div class="row">
+    <div class="col-12">
+        <table class="table table-striped table-bordered shadow-sm align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Vault Name</th>
+                    <th>Owner</th>
+                    <th>Description</th>
+                    <th>Deleted At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for vault in vaults %}
+                <tr>
+                    <td><strong>{{ vault[1] }}</strong></td>
+                    <td>{{ vault[3] }}</td>
+                    <td>{{ vault[2] if vault[2] else '-' }}</td>
+                    <td>{{ vault[4] }}</td>
+                    <td>
+                        <form method="POST"
+                              action="{{ url_for('restore_vault_route', vault_id=vault[0]) }}"
+                              style="display:inline;">
+                            <button class="btn btn-sm btn-outline-success" type="submit"
+                                    onclick="return confirm('Restore vault &quot;{{ vault[1] }}&quot;?')">
+                                ♻️ Restore
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No deleted vaults found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+</div>
+
+{% endblock %}
