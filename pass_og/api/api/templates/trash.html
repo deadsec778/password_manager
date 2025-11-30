@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h3 class="mb-4"><i class="fa-solid fa-trash-can me-1"></i> Trash Bin</h3>
+<h3 class="mb-4"><i class="fa-solid fa-trash-can me-1" style="color: #ff1900;"></i> <span style="color: #ff1900;">Trash Bin</span></h3>
 
 <!-- Tabs for Passwords and Vaults (Admin only) -->
 <ul class="nav nav-tabs mb-3" role="tablist">
@@ -43,7 +43,19 @@
                     <td>{{ it.service if it.service else '-' }}</td>
                     <td>{{ it.owner }}</td>
                     <td>{{ it.username if it.username else '-' }}</td>
-                    <td><code>{{ it.password }}</code></td>
+                    <td style="width:260px;">
+                        <!-- masked display -->
+                        <span id="mask_{{ it.id }}">••••••••••</span>
+
+                        <!-- real password (hidden by default) -->
+                        <code id="real_{{ it.id }}" style="display:none;">{{ it.password }}</code>
+
+                        <!-- eye button -->
+                        <button class="btn btn-sm btn-outline-secondary ms-2"
+                                onclick="togglePasswordRow('{{ it.id }}'); return false;">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </td>
                     <td>{{ it.updated_at }}</td>
 
                     <td>

@@ -126,7 +126,12 @@ def signup():
         else:
             role = "user"
 
-        register_user(username, email, password, role)
+        success, msg = register_user(username, email, password, role)
+        if not success:
+            # registration failed (duplicate username/email or DB error)
+            flash(f"Could not create account: {msg}", "danger")
+            return render_template("signup.html", is_first_admin=is_first_admin, username=username, email=email)
+
         flash(f"Account created successfully!", "success")
         return redirect(url_for("login"))
 
@@ -605,7 +610,10 @@ def admin_add_user():
             return redirect(url_for("admin_add_user"))
 
         # use your existing register logic
-        register_user(username, email, password, role)
+        success, msg = register_user(username, email, password, role)
+        if not success:
+            flash(f"Could not create user: {msg}", "danger")
+            return redirect(url_for("admin_add_user"))
 
         flash("User created successfully!", "success")
         return redirect(url_for("admin_users"))
