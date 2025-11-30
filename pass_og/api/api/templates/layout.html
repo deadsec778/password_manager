@@ -325,52 +325,86 @@
             display: inline-block;
             padding-right: 0.25rem; /* small spacing before the eye */
             box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
 
-        /* add small right padding so eye button doesn't sit flush against notes column */
+        /* add right padding so action buttons don't sit flush against notes column */
         .password-cell {
-            padding-right: 0.5rem;
+            padding-right: 1rem;
         }
 
-        /* make the mask and real password align visually identical */
-    .password-cell .mask,
-    .password-cell .real {
-    display: inline-block;
-    width: 100%;
-    box-sizing: border-box;
-    font-family: inherit;
-    font-size: 0.95rem;
-    line-height: 1.2;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid transparent;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    }
-
-        /* masked text style */
-        .password-cell .mask {
-        color: #333;
-        letter-spacing: 3px;
+        /* actions container (copy + eye) at the right side of the password cell */
+        .password-cell .pw-actions {
+            display: inline-flex;
+            gap: 0.45rem;
+            align-items: center;
+            flex: 0 0 auto;
+            margin-left: 0.5rem;
+            position: relative;
+            z-index: 2; /* keep actions above pw-text so they are clickable when masked */
         }
 
-        /* hidden real password (kept same sizing) */
+        /* copy icon hidden by default, shown on hover */
+        .password-cell .copy-icon {
+            display: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Show copy icon only when password is revealed (show-real) */
+        .password-cell.show-real .copy-icon {
+            display: inline-block;
+        }
+
+        /* tweak eye button inside actions */
+        .password-cell .pw-eye-btn {
+            padding: 6px 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            /* make the mask and real password align visually identical */
+        .password-cell .mask,
         .password-cell .real {
-        display: none;             /* toggled to inline-block when visible */
-        background: #f8f9fa;
-        border: 1px solid rgba(0,0,0,0.06);
+        display: inline-block;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 0.95rem;
+        line-height: 1.2;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        overflow: hidden;
+        text-overflow: ellipsis;
         }
 
-    /* eye button small visual tuning (keeps same height as mask) */
-    .password-cell .btn {
-    padding: 6px 8px;
-    height: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 0; /* ensure no extra spacing */
-    }
+            /* masked text style */
+            .password-cell .mask {
+            color: #333;
+            letter-spacing: 3px;
+            }
+
+            /* hidden real password (kept same sizing) */
+            .password-cell .real {
+            display: none;             /* toggled to inline-block when visible */
+            background: #f8f9fa;
+            border: 1px solid rgba(0,0,0,0.06);
+            }
+
+        /* eye button small visual tuning (keeps same height as mask) */
+        .password-cell .btn {
+        padding: 6px 8px;
+        height: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 0; /* ensure no extra spacing */
+        }
 
         /* Right align password and notes cells to match SaaS/CRM standards */
         .table tbody td.password-col {
@@ -401,6 +435,10 @@
         .password-cell.show-real .mask {
         display: none;
         }
+        .password-wrapper:hover .password-copy {
+        display: block !important;
+        }
+
 
                 
     </style>
