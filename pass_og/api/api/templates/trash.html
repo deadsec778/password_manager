@@ -43,19 +43,7 @@
                     <td>{{ it.service if it.service else '-' }}</td>
                     <td>{{ it.owner }}</td>
                     <td>{{ it.username if it.username else '-' }}</td>
-                    <td style="width:260px;">
-                        <!-- masked display -->
-                        <span id="mask_{{ it.id }}">••••••••••</span>
-
-                        <!-- real password (hidden by default) -->
-                        <code id="real_{{ it.id }}" style="display:none;">{{ it.password }}</code>
-
-                        <!-- eye button -->
-                        <button class="btn btn-sm btn-outline-secondary ms-2"
-                                onclick="togglePasswordRow('{{ it.id }}'); return false;">
-                            <i class="fa-regular fa-eye"></i>
-                        </button>
-                    </td>
+                    <td><code>{{ it.password }}</code></td>
                     <td>{{ it.updated_at }}</td>
 
                     <td>

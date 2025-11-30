@@ -239,6 +239,170 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        .github-link {
+            color: inherit !important;           /* keep text normal */
+            font-weight: 600;
+        }
+
+        .github-icon {
+            color: #6c757d;                      /* grey icon */
+            transition: 0.25s ease-in-out;
+        }
+
+        .github-link:hover .github-icon {
+            color: #f6c600;                      /* yellow glow color */
+            text-shadow: 
+                0px 0px 4px rgba(246, 198, 0, 0.5),
+                0px 0px 6px rgba(246, 198, 0, 0.35);
+            transform: scale(1.15);              /* slight zoom */
+        }
+
+        /* Prevent table distortion */
+        .table td, .table th {
+            vertical-align: middle;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Center most table headers for CRM-like layout */
+        .table thead th {
+            text-align: center;
+            vertical-align: middle;
+            font-weight: 600;
+        }
+
+        /* Notes column header should be right-aligned */
+        .table thead th.notes-col {
+            text-align: right;
+        }
+
+        /* Special class for long text */
+        .long-text {
+            max-width: 220px;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+        }
+
+        /* On hover, show full text without breaking row */
+        .long-text:hover {
+            white-space: normal !important;
+            overflow: visible !important;
+            background: #ffffff;
+            padding: 4px 6px;
+            border-radius: 4px;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        /* ensure table rows look neat */
+        .table td, .table th {
+        vertical-align: middle; /* fallback for non-flex cells */
+        }
+
+        /* password cell layout */
+        .password-cell {
+        display: flex;
+        align-items: center;        /* center everything vertically */
+        gap: 0.35rem;               /* tighter space between mask/code and button */
+        white-space: nowrap;        /* keep mask and button together */
+        min-width: 160px;
+        max-width: 720px;
+        }
+
+        /* specific layout for pw-text inside password-cell to keep eye button stable */
+        .password-cell .pw-text {
+            flex: 1 1 220px; /* flexible but preferred 220px so eye button doesn't move too much */
+            min-width: 100px;
+            max-width: 420px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: inline-block;
+            padding-right: 0.25rem; /* small spacing before the eye */
+            box-sizing: border-box;
+        }
+
+        /* add small right padding so eye button doesn't sit flush against notes column */
+        .password-cell {
+            padding-right: 0.5rem;
+        }
+
+        /* make the mask and real password align visually identical */
+    .password-cell .mask,
+    .password-cell .real {
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    }
+
+        /* masked text style */
+        .password-cell .mask {
+        color: #333;
+        letter-spacing: 3px;
+        }
+
+        /* hidden real password (kept same sizing) */
+        .password-cell .real {
+        display: none;             /* toggled to inline-block when visible */
+        background: #f8f9fa;
+        border: 1px solid rgba(0,0,0,0.06);
+        }
+
+    /* eye button small visual tuning (keeps same height as mask) */
+    .password-cell .btn {
+    padding: 6px 8px;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0; /* ensure no extra spacing */
+    }
+
+        /* Right align password and notes cells to match SaaS/CRM standards */
+        .table tbody td.password-col {
+            text-align: right;
+            vertical-align: middle;
+            padding-right: 0.75rem;
+        }
+
+        .table tbody td.notes-col {
+            text-align: right;
+            vertical-align: middle;
+            padding-right: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Center align service and username columns for clean CRM layout */
+        .table tbody td.service-col,
+        .table tbody td.username-col {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* when toggled to show real password, ensure it lines up */
+        .password-cell.show-real .real {
+        display: inline-block;
+        }
+
+        .password-cell.show-real .mask {
+        display: none;
+        }
+
+                
     </style>
 </head>
 
@@ -262,6 +426,8 @@
                 PassManager
             </a>
 
+
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -277,6 +443,7 @@
                             <i class="fa-solid fa-table-columns me-1"></i> Dashboard
                         </a>
                     </li>
+
 
                     {# SHOW TRASH ONLY FOR ADMINS #}
                     {% if session.get("role") == "admin" %}
@@ -310,7 +477,8 @@
                     {% endif %}
 
                 </ul>
-
+                
+<!-- 
                 <ul class="navbar-nav ms-auto align-items-center">
                     {% if session.get("username") %}
                     <li class="nav-item me-3">
@@ -326,11 +494,48 @@
                         </a>
                     </li>
                     {% endif %}
+                </ul> -->
+
+                <ul class="navbar-nav ms-auto align-items-center">
+
+                    {# Show About/GitHub ONLY on the login page #}
+                    {% if request.endpoint == 'login' and not session.get("username") %}
+                    <li class="nav-item me-3">
+                        <a class="nav-link github-link" href="https://github.com/deadsec778" target="_blank">
+                            <i class="fa-brands fa-github me-1 github-icon"></i>
+                            About
+                        </a>
+                    </li>
+
+
+                    {% endif %}
+
+                    {# Show logged-in user + logout #}
+                    {% if session.get("username") %}
+                    <li class="nav-item me-3">
+                        <span class="nav-link text-dark" style="opacity: 0.9;">
+                            <i class="fa-regular fa-circle-user me-2"></i>{{ session.username }}
+                            <span class="badge bg-primary bg-opacity-10 text-primary ms-1" style="font-weight: 600;">
+                                {{ session.role }}
+                            </span>
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-danger text-white" href="{{ url_for('logout') }}">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                        </a>
+                    </li>
+                    {% endif %}
+
                 </ul>
+
 
             </div>
         </div>
     </nav>
+
+
+    
 
 
     <div class="container content-container" style="padding-top: 60px;">
@@ -381,15 +586,25 @@
         }
 
         function togglePasswordRow(pid) {
-            const mask = document.getElementById("mask_" + pid);
-            const real = document.getElementById("real_" + pid);
+            const cell = document.getElementById("pwcell_" + pid);
+            const eye = document.getElementById("eye_" + pid);
 
-            if (real.style.display === "none") {
-                real.style.display = "inline";
-                mask.style.display = "none";
+            if (!cell) return;
+
+            const showing = cell.classList.contains('show-real');
+
+            if (showing) {
+                cell.classList.remove('show-real');
+                if (eye) {
+                    eye.classList.remove('fa-eye-slash');
+                    eye.classList.add('fa-eye');
+                }
             } else {
-                real.style.display = "none";
-                mask.style.display = "inline";
+                cell.classList.add('show-real');
+                if (eye) {
+                    eye.classList.remove('fa-eye');
+                    eye.classList.add('fa-eye-slash');
+                }
             }
         }
     </script>

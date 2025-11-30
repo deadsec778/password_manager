@@ -408,7 +408,7 @@ def soft_delete_password_route(password_id):
     conn.commit()
     cur.close()
     conn.close()
-    flash("Password moved to trash (if permitted).", "info")
+    flash("Password moved to trash.", "info")
     return redirect(request.referrer or url_for("dashboard"))
 
 # Trash listing
@@ -899,4 +899,4 @@ def import_apply(vault_id):
 
 # Run dev server
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True,host='0.0.0.0',port=5000)

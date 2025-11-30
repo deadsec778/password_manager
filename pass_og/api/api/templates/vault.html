@@ -33,7 +33,7 @@
                     <th>Service</th>
                     <th>Username</th>
                     <th>Password</th>
-                    <th>Notes</th>
+                    <th class="notes-col">Notes</th>
                     <th></th>
                 </tr>
             </thead>
@@ -41,26 +41,51 @@
             <tbody>
                 {% for p in passwords %}
                 <tr>
-                    <td>{{ p.service }}</td>
-                    <td>{{ p.username }}</td>
+                    <td class="service-col"><span class="long-text">{{ p.service }}</span></td>
+                    <td class="username-col"><span class="long-text">{{ p.username }}</span></td>
 
-                    <td style="width: 260px;">
-                        <!-- masked display -->
-                        <span id="mask_{{ p.password_id }}">••••••••••</span>
+                  <!-- NEW PROPER PASSWORD layout -->
+                   <td class="password-col">
+                    <div id="pwcell_{{ p.password_id }}" class="password-cell">
+                        <span class="pw-text d-inline-block" >
+                            <!-- masked display -->
+                            <span class="mask" id="mask_{{ p.password_id }}">••••••••••</span>
 
-                        <!-- real password (hidden by default) -->
+                            <!-- real password (hidden by default) -->
+                            <code class="real" id="real_{{ p.password_id }}">{{ p.password }}</code>
+                        </span>
+
+                        <!-- eye button (icon id toggled) -->
+                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                onclick="togglePasswordRow('{{ p.password_id }}')"
+                                aria-label="Show password">
+                            <i id="eye_{{ p.password_id }}" class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                    </td>
+
+
+
+                <!-- NEW PROPER PASSWORD layout -->
+
+                    <!-- <td style="width: 260px;"> -->
+                        <!-- masked display
+                        <span id="mask_{{ p.password_id }}">••••••••••</span> -->
+
+                        <!-- real password (hidden by default)
                         <code id="real_{{ p.password_id }}" style="display:none;">
                             {{ p.password }}
-                        </code>
+                        </code> -->
 
-                        <!-- eye button -->
+                        <!-- eye button
                         <button class="btn btn-sm btn-outline-secondary ms-2"
                             onclick="togglePasswordRow('{{ p.password_id }}')">
                             <i class="fa-regular fa-eye"></i>
                         </button>
-                    </td>
+                    </td> -->
 
-                    <td>{{ p.notes }}</td>
+                    <td class="notes-col"><span class="long-text">{{ p.notes }}</span></td>
+
 
                     <td>
                         <form method="POST"
