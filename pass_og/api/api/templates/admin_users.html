@@ -1,36 +1,52 @@
 {% extends "layout.html" %}
 {% block content %}
-  <h3>Users</h3>
-  <a href="{{ url_for('admin_add_user') }}" class="btn btn-primary mb-3">
-    ➕ Add New User
+<h3>Users</h3>
+<a href="{{ url_for('admin_add_user') }}" class="btn btn-primary mb-3">
+  <i class="fa fa-plus-square-o"></i> Add New User
 </a>
 <form method="GET" class="mb-3">
-    <div class="input-group">
-        <input type="text" name="q" class="form-control"
-               placeholder="Search username, email, role..."
-               value="{{ request.args.get('q','') }}">
-        <button class="btn btn-outline-primary">Search</button>
-    </div>
+  <div class="input-group">
+    <input type="text" name="q" class="form-control" placeholder="Search username, email, role..."
+      value="{{ request.args.get('q','') }}">
+    <button class="btn btn-outline-primary">Search</button>
+  </div>
 </form>
 
 
 
-  <table class="table">
-    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for u in users %}
-        <tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }}</td><td>{{ u[3] }}</td><td>{{ u[4] }}</td><td>
-            <a href="{{ url_for('modify_user', user_id=u[0]) }}"
-              class="btn btn-sm btn-outline-primary">
-          ✏️   Edit
-            </a>
-        </td></tr>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Username</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u[0] }}</td>
+      <td>{{ u[1] }}</td>
+      <td>{{ u[2] }}</td>
+      <td>{{ u[3] }}</td>
+      <td>{{ u[4] }}</td>
+      <td>
+        <a href="{{ url_for('modify_user', user_id=u[0]) }}" class="btn btn-sm btn-outline-primary">
+          Edit <i class="fa fa-wrench" aria-hidden="true"></i>
+        </a>
+      </td>
+    </tr>
 
-        
 
-      {% else %}
-        <tr><td colspan="5">No users found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+
+    {% else %}
+    <tr>
+      <td colspan="5">No users found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

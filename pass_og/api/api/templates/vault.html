@@ -6,12 +6,11 @@
     <div>
         <a class="btn btn-sm btn-success" href="{{ url_for('add_password', vault_id=vault[0]) }}">+ Add Password</a>
         {% if role == 'admin' %}
-        <form method="POST"
-              action="{{ url_for('soft_delete_vault_route', vault_id=vault[0]) }}"
-              style="display:inline;">
+        <form method="POST" action="{{ url_for('soft_delete_vault_route', vault_id=vault[0]) }}"
+            style="display:inline;">
             <button class="btn btn-sm btn-outline-danger" type="submit"
-                    onclick="return confirm('Move vault to trash?')">
-                🗑 Delete
+                onclick="return confirm('Move vault to trash?')">
+                <i class="fa-solid fa-trash-can me-1"></i>Delete
             </button>
         </form>
         {% endif %}
@@ -20,8 +19,8 @@
 
 <form method="GET" class="mb-3">
     <div class="input-group">
-        <input type="text" name="q" value="{{ request.args.get('q','') }}"
-               class="form-control" placeholder="Search service, username, notes, URL...">
+        <input type="text" name="q" value="{{ request.args.get('q','') }}" class="form-control"
+            placeholder="Search service, username, notes, URL...">
         <button class="btn btn-outline-primary">Search</button>
     </div>
 </form>
@@ -56,8 +55,8 @@
 
                         <!-- eye button -->
                         <button class="btn btn-sm btn-outline-secondary ms-2"
-                                onclick="togglePasswordRow('{{ p.password_id }}')">
-                            👁️
+                            onclick="togglePasswordRow('{{ p.password_id }}')">
+                            <i class="fa-regular fa-eye"></i>
                         </button>
                     </td>
 
@@ -65,8 +64,8 @@
 
                     <td>
                         <form method="POST"
-                              action="{{ url_for('soft_delete_password_route', password_id=p.password_id) }}"
-                              style="display:inline;">
+                            action="{{ url_for('soft_delete_password_route', password_id=p.password_id) }}"
+                            style="display:inline;">
                             <button class="btn btn-sm btn-outline-danger">Trash</button>
                         </form>
                     </td>
@@ -82,17 +81,16 @@
     </div>
 </div>
 <div class="mt-3 text-center">
-     {% if page|int > 1 %}
-     <a class="btn btn-outline-primary btn-sm"
-         href="?page={{ page|int - 1 }}&q={{ request.args.get('q','') }}">⬅ Prev</a>
-     {% endif %}
+    {% if page|int > 1 %}
+    <a class="btn btn-outline-primary btn-sm" href="?page={{ page|int - 1 }}&q={{ request.args.get('q','') }}">⬅
+        Prev</a>
+    {% endif %}
 
     <span class="mx-2">Page {{ page }} of {{ total_pages }}</span>
 
-     {% if page|int < total_pages|int %}
-     <a class="btn btn-outline-primary btn-sm"
-         href="?page={{ page|int + 1 }}&q={{ request.args.get('q','') }}">Next ➡</a>
-     {% endif %}
+    {% if page|int < total_pages|int %} <a class="btn btn-outline-primary btn-sm"
+        href="?page={{ page|int + 1 }}&q={{ request.args.get('q','') }}">Next ➡</a>
+        {% endif %}
 </div>
 
 

@@ -1,21 +1,21 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h3 class="mb-4">🗑 Trash Bin</h3>
+<h3 class="mb-4"><i class="fa-solid fa-trash-can me-1"></i> Trash Bin</h3>
 
 <!-- Tabs for Passwords and Vaults (Admin only) -->
 <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="passwords-tab" data-bs-toggle="tab" 
-                data-bs-target="#passwords-content" type="button" role="tab">
-            🔑 Deleted Passwords
+        <button class="nav-link active" id="passwords-tab" data-bs-toggle="tab" data-bs-target="#passwords-content"
+            type="button" role="tab">
+            <i class="fa-solid fa-key me-1"></i> Deleted Passwords
         </button>
     </li>
     {% if role == 'admin' %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="vaults-tab" data-bs-toggle="tab"
-                data-bs-target="#vaults-content" type="button" role="tab">
-            🗂 Deleted Vaults
+        <button class="nav-link" id="vaults-tab" data-bs-toggle="tab" data-bs-target="#vaults-content" type="button"
+            role="tab">
+            <i class="fa-solid fa-folder me-1"></i> Deleted Vaults
         </button>
     </li>
     {% endif %}
@@ -39,27 +39,26 @@
 
             <tbody>
                 {% for it in items %}
-                    <tr>
-                        <td>{{ it.service if it.service else '-' }}</td>
-                        <td>{{ it.owner }}</td>
-                        <td>{{ it.username if it.username else '-' }}</td>
-                        <td><code>{{ it.password }}</code></td>
-                        <td>{{ it.updated_at }}</td>
+                <tr>
+                    <td>{{ it.service if it.service else '-' }}</td>
+                    <td>{{ it.owner }}</td>
+                    <td>{{ it.username if it.username else '-' }}</td>
+                    <td><code>{{ it.password }}</code></td>
+                    <td>{{ it.updated_at }}</td>
 
-                        <td>
-                            <form method="POST"
-                                  action="{{ url_for('restore_password_route', password_id=it.id) }}"
-                                  style="display:inline;">
-                                <button class="btn btn-sm btn-outline-primary">
-                                    Restore
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
+                    <td>
+                        <form method="POST" action="{{ url_for('restore_password_route', password_id=it.id) }}"
+                            style="display:inline;">
+                            <button class="btn btn-sm btn-outline-primary">
+                                Restore
+                            </button>
+                        </form>
+                    </td>
+                </tr>
                 {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center">No deleted passwords.</td>
-                    </tr>
+                <tr>
+                    <td colspan="6" class="text-center">No deleted passwords.</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
