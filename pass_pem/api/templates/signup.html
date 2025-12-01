@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card p-4 shadow-sm">
+      <h3>Create New Account</h3>
+      <form method="POST">
+        <div class="mb-3">
+          <label>Username</label>
+          <input name="username" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label>Email</label>
+          <input name="email" class="form-control" type="email" required>
+        </div>
+        <div class="mb-3">
+          <label>Password</label>
+          <div class="input-group">
+            <input id="signup_password" name="password" class="form-control" type="password" required>
+            <button class="btn btn-outline-secondary" type="button" id="toggle_signup_pw" onclick="toggleSignupPassword()" aria-label="Toggle password visibility">
+              <i id="toggle_signup_pw_icon" class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-primary">Sign Up</button>
+      </form>
+      <script>
+      // Toggle password visibility for signup form using Font Awesome icons
+      function toggleSignupPassword() {
+        const input = document.getElementById('signup_password');
+        const icon = document.getElementById('toggle_signup_pw_icon');
+        if (!input || !icon) return;
+
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          input.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      }
+      </script>
+    </div>
+  </div>
+</div>
+{% endblock %}

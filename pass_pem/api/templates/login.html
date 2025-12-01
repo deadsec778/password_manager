@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card p-4 shadow-sm">
+      <h3 class="mb-3"><i class="fa-solid fa-lock" style="color: #058df5;"></i> Secure Login</h3>
+      <form method="POST" autocomplete="off">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input class="form-control" name="username" required />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <div class="input-group">
+            <input class="form-control" type="password" name="password" id="login_pw" required />
+
+            <button type="button" class="btn btn-outline-secondary" id="login_eye"
+              onclick="togglePassword('login_pw', 'login_eye')">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="small text-muted mt-1">
+            made with <i class="fa-solid fa-heart"></i> by deadsec778
+          </div>
+        </div>
+
+        <!-- <div class="mb-3">
+            <label class="form-label">Master Password</label>
+            <input class="form-control" type="password" name="password" required />
+            <div class="small-muted mt-1">This is a test; do not use production secrets.</div>
+          </div> -->
+        <button class="btn btn-primary">Login</button>
+        <div class="mt-3 text-center">
+          {% if admin_exists %}
+          <a href="{{ url_for('signup') }}" class="btn btn-outline-secondary btn-sm">
+            Sign Up
+          </a>
+          {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-outline-primary btn-sm">
+            Create Admin Account
+          </a>
+          {% endif %}
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

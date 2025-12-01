@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h3>Edit User</h3>
+<hr>
+
+<form method="POST">
+
+    <div class="mb-3">
+        <label>Username</label>
+        <input class="form-control" name="username" value="{{ user[1] }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Email</label>
+        <input class="form-control" name="email" value="{{ user[2] }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Role</label>
+        <select class="form-select" name="role" required>
+            <option value="user"  {% if user[3] == 'user' %}selected{% endif %}>User</option>
+            <option value="admin" {% if user[3] == 'admin' %}selected{% endif %}>Admin</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label>Status</label>
+        <select class="form-select" name="status" required>
+            <option value="active"   {% if user[4] == 'active' %}selected{% endif %}>Active</option>
+            <option value="disabled" {% if user[4] == 'disabled' %}selected{% endif %}>Disabled</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label>Reset Password (optional)</label>
+        <input type="password" name="new_password" class="form-control">
+        <small class="text-muted">Leave empty to keep existing password.</small>
+    </div>
+
+    <button class="btn btn-success">Save Changes</button>
+    <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">Cancel</a>
+
+</form>
+
+{% endblock %}
