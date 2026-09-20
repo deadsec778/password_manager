@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Password Manager" }}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            /* Blue 600 */
+            --primary-hover: #1d4ed8;
+            /* Blue 700 */
+            --bg-color: #f0f9ff;
+            /* Sky 50 */
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --text-main: #1e293b;
+            /* Slate 800 */
+            --text-muted: #64748b;
+            /* Slate 500 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --navbar-bg: rgba(255, 255, 255, 0.85);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Mouse Responsive Background */
+        .ambient-light {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            background:
+                radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(56, 189, 248, 0.15) 0%, transparent 50%),
+                /* Sky Blue */
+                radial-gradient(circle at 80% 20%, rgba(129, 140, 248, 0.1) 0%, transparent 40%);
+            /* Indigo */
+            transition: background 0.1s ease;
+        }
+
+        /* Navbar Styling */
+        .navbar {
+            background: var(--navbar-bg) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            padding: 1rem 0;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary-color) !important;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-muted) !important;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--primary-color) !important;
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        /* Content Container */
+        .content-container {
+            margin-top: 40px;
+            margin-bottom: 60px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        /* Cards (Global Override) */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .card-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            font-weight: 600;
+            padding: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            padding: 0.6rem 1.2rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: capitalize;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border: none;
+        }
+
+        /* Form Controls */
+        .form-control {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #cbd5e1;
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            background: #fff;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            color: var(--text-main);
+        }
+
+        /* Alerts */
+        .alert {
+            border-radius: 12px;
+            border: none;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .alert-success {
+            background: rgba(220, 252, 231, 0.8);
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+        }
+
+        .alert-danger {
+            background: rgba(254, 226, 226, 0.8);
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .github-link {
+            color: inherit !important;           /* keep text normal */
+            font-weight: 600;
+        }
+
+        .github-icon {
+            color: #6c757d;                      /* grey icon */
+            transition: 0.25s ease-in-out;
+        }
+
+        .github-link:hover .github-icon {
+            color: #f6c600;                      /* yellow glow color */
+            text-shadow: 
+                0px 0px 4px rgba(246, 198, 0, 0.5),
+                0px 0px 6px rgba(246, 198, 0, 0.35);
+            transform: scale(1.15);              /* slight zoom */
+        }
+
+        /* Prevent table distortion */
+        .table td, .table th {
+            vertical-align: middle;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Center most table headers for CRM-like layout */
+        .table thead th {
+            text-align: center;
+            vertical-align: middle;
+            font-weight: 600;
+        }
+
+        /* Notes column header should be right-aligned */
+        .table thead th.notes-col {
+            text-align: right;
+        }
+
+        /* Special class for long text */
+        .long-text {
+            max-width: 220px;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+        }
+
+        /* On hover, show full text without breaking row */
+        .long-text:hover {
+            white-space: normal !important;
+            overflow: visible !important;
+            background: #ffffff;
+            padding: 4px 6px;
+            border-radius: 4px;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        /* ensure table rows look neat */
+        .table td, .table th {
+        vertical-align: middle; /* fallback for non-flex cells */
+        }
+
+        /* password cell layout */
+        .password-cell {
+        display: flex;
+        align-items: center;        /* center everything vertically */
+        gap: 0.35rem;               /* tighter space between mask/code and button */
+        white-space: nowrap;        /* keep mask and button together */
+        min-width: 160px;
+        max-width: 720px;
+        }
+
+        /* specific layout for pw-text inside password-cell to keep eye button stable */
+        .password-cell .pw-text {
+            flex: 1 1 220px; /* flexible but preferred 220px so eye button doesn't move too much */
+            min-width: 100px;
+            max-width: 420px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: inline-block;
+            padding-right: 0.25rem; /* small spacing before the eye */
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* add right padding so action buttons don't sit flush against notes column */
+        .password-cell {
+            padding-right: 1rem;
+        }
+
+        /* actions container (copy + eye) at the right side of the password cell */
+        .password-cell .pw-actions {
+            display: inline-flex;
+            gap: 0.45rem;
+            align-items: center;
+            flex: 0 0 auto;
+            margin-left: 0.5rem;
+            position: relative;
+            z-index: 2; /* keep actions above pw-text so they are clickable when masked */
+        }
+
+        /* copy icon hidden by default, shown on hover */
+        .password-cell .copy-icon {
+            display: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Show copy icon only when password is revealed (show-real) */
+        .password-cell.show-real .copy-icon {
+            display: inline-block;
+        }
+
+        /* tweak eye button inside actions */
+        .password-cell .pw-eye-btn {
+            padding: 6px 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            /* make the mask and real password align visually identical */
+        .password-cell .mask,
+        .password-cell .real {
+        display: inline-block;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 0.95rem;
+        line-height: 1.2;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        }
+
+            /* masked text style */
+            .password-cell .mask {
+            color: #333;
+            letter-spacing: 3px;
+            }
+
+            /* hidden real password (kept same sizing) */
+            .password-cell .real {
+            display: none;             /* toggled to inline-block when visible */
+            background: #f8f9fa;
+            border: 1px solid rgba(0,0,0,0.06);
+            }
+
+        /* eye button small visual tuning (keeps same height as mask) */
+        .password-cell .btn {
+        padding: 6px 8px;
+        height: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 0; /* ensure no extra spacing */
+        }
+
+        /* Right align password and notes cells to match SaaS/CRM standards */
+        .table tbody td.password-col {
+            text-align: right;
+            vertical-align: middle;
+            padding-right: 0.75rem;
+        }
+
+        .table tbody td.notes-col {
+            text-align: right;
+            vertical-align: middle;
+            padding-right: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Center align service and username columns for clean CRM layout */
+        .table tbody td.service-col,
+        .table tbody td.username-col {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* when toggled to show real password, ensure it lines up */
+        .password-cell.show-real .real {
+        display: inline-block;
+        }
+
+        .password-cell.show-real .mask {
+        display: none;
+        }
+        .password-wrapper:hover .password-copy {
+        display: block !important;
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .slash-hover {
+            position: relative;
+            overflow: hidden;
+            transition: color 0.3s ease;
+        }
+
+        /* Slash overlay */
+        .slash-hover::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -160%;
+            width: 150%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3); /* Light slash */
+            transform: skewX(-25deg);
+            transition: left 0.45s ease ;
+        }
+
+        /* Hover animation */
+        .slash-hover:hover::after {
+            left: 150%;
+        }
+
+        /* optional: keep text white */
+        .slash-hover:hover {
+            color: #fff !important;
+        }
+                        
+    </style>
+</head>
+
+<body>
+
+    <!-- Mouse Tracking Background -->
+    <div class="ambient-light"></div>
+
+    {# ----------------------------- #}
+    {# TOP NAVBAR (GLOBAL) #}
+    {# ----------------------------- #}
+
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <div class="d-flex align-items-center justify-content-center bg-primary text-white rounded-circle me-2"
+                    style="width: 36px; height: 36px;">
+                    <i class="fa-solid fa-lock fa-sm"></i>
+                </div>
+                PassManager
+            </a>
+
+
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+
+                <ul class="navbar-nav me-auto ms-lg-4">
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/dashboard') %}active{% endif %}"
+                            href="{{ url_for('dashboard') }}">
+                            <i class="fa-solid fa-table-columns me-1"></i> Dashboard
+                        </a>
+                    </li>
+
+
+                    {# SHOW TRASH ONLY FOR ADMINS #}
+                    {% if session.get("role") == "admin" %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/trash') %}active{% endif %}"
+                            href="{{ url_for('trash') }}">
+                            <i class="fa-solid fa-trash-can me-1"></i> Trash
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {# ADMIN PANEL (admin only) #}
+                    {% if session.get("role") == "admin" %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.path.startswith('/admin') %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-solid fa-shield-cat me-1"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu border-0 shadow-lg"
+                            style="background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">Users Panel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_add_user') }}">Add User</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('trash_vaults') }}">Deleted Vaults</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('import_passwords_page') }}">Import
+                                    Passwords</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                </ul>
+                
+<!-- 
+                <ul class="navbar-nav ms-auto align-items-center">
+                    {% if session.get("username") %}
+                    <li class="nav-item me-3">
+                        <span class="nav-link text-dark" style="opacity: 0.9;">
+                            <i class="fa-regular fa-circle-user me-2"></i>{{ session.username }}
+                            <span class="badge bg-primary bg-opacity-10 text-primary ms-1" style="font-weight: 600;">{{
+                                session.role }}</span>
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-danger text-white" href="{{ url_for('logout') }}">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul> -->
+
+                <ul class="navbar-nav ms-auto align-items-center">
+
+                    {# Show About/GitHub ONLY on the login page #}
+                    {% if request.endpoint == 'login' and not session.get("username") %}
+                    <li class="nav-item me-3">
+                        <a class="nav-link github-link" href="https://github.com/deadsec778" target="_blank">
+                            <i class="fa-brands fa-github me-1 github-icon"></i>
+                            About
+                        </a>
+                    </li>
+
+
+                    {% endif %}
+
+                    {# Show logged-in user + logout #}
+                    {% if session.get("username") %}
+                    <li class="nav-item me-3">
+                        <span class="nav-link text-dark" style="opacity: 0.9;">
+                            <i class="fa-regular fa-circle-user me-2"></i>{{ session.username }}
+                            <span class="badge bg-primary bg-opacity-10 text-primary ms-1" style="font-weight: 600;">
+                                {{ session.role }}
+                            </span>
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-danger text-white slash-hover" href="{{ url_for('logout') }}">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                        </a>
+                    </li>
+                    {% endif %}
+
+                </ul>
+
+
+            </div>
+        </div>
+    </nav>
+
+
+    
+
+
+    <div class="container content-container" style="padding-top: 60px;">
+        {# Flash messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="row justify-content-center mb-4">
+            <div class="col-lg-8">
+                {% for category, msg in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center"
+                    role="alert">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    <div>{{ msg }}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mouse tracking for gradient background
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            document.documentElement.style.setProperty('--mouse-x', x + 'px');
+            document.documentElement.style.setProperty('--mouse-y', y + 'px');
+        });
+
+        // Existing functions preserved
+        function togglePassword(fieldId, eyeId) {
+            const field = document.getElementById(fieldId);
+            const eye = document.getElementById(eyeId);
+
+            if (field.type === "password") {
+                field.type = "text";
+                eye.innerHTML = '<i class="fa-regular fa-eye-slash"></i>';  // hide icon
+            } else {
+                field.type = "password";
+                eye.innerHTML = '<i class="fa-regular fa-eye"></i>'; // show icon
+            }
+        }
+
+        function togglePasswordRow(pid) {
+            const cell = document.getElementById("pwcell_" + pid);
+            const eye = document.getElementById("eye_" + pid);
+
+            if (!cell) return;
+
+            const showing = cell.classList.contains('show-real');
+
+            if (showing) {
+                cell.classList.remove('show-real');
+                if (eye) {
+                    eye.classList.remove('fa-eye-slash');
+                    eye.classList.add('fa-eye');
+                }
+            } else {
+                cell.classList.add('show-real');
+                if (eye) {
+                    eye.classList.remove('fa-eye');
+                    eye.classList.add('fa-eye-slash');
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

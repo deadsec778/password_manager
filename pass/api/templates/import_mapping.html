@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h3><i class="fa-solid fa-wrench me-1"></i> Map Columns to Password Fields</h3>
+<hr>
+
+<form method="POST" action="{{ url_for('import_apply', vault_id=vault_id) }}">
+
+    <p class="text-muted">
+        Match each password field to a column from your file.
+    </p>
+
+    <div class="row">
+        <div class="col-md-6">
+
+            <!-- REQUIRED FIELDS -->
+            <div class="mb-3">
+                <label class="form-label">Service Name (required)</label>
+                <select name="map_service" class="form-select" required>
+                    <option value="">-- Select Column --</option>
+                    {% for col in header %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Username / Email (required)</label>
+                <select name="map_username" class="form-select" required>
+                    <option value="">-- Select Column --</option>
+                    {% for col in header %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password (required)</label>
+                <select name="map_password" class="form-select" required>
+                    <option value="">-- Select Column --</option>
+                    {% for col in header %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- OPTIONAL FIELDS -->
+            <div class="mb-3">
+                <label class="form-label">URL (optional)</label>
+                <select name="map_url" class="form-select">
+                    <option value="">-- Skip --</option>
+                    {% for col in header %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notes (optional)</label>
+                <select name="map_notes" class="form-select">
+                    <option value="">-- Skip --</option>
+                    {% for col in header %}
+                    <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="btn btn-success">Import Passwords</button>
+            <a href="{{ url_for('import_password_mapping_page', vault_id=vault_id) }}"
+                class="btn btn-secondary">Back</a>
+        </div>
+    </div>
+
+</form>
+
+{% endblock %}

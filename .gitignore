@@ -1,0 +1,9 @@
+.env
+*.key
+*.sql
+venv/
+.venv/
+pass_venv/
+__pycache__/
+*.pyc
+pass_og_old/
