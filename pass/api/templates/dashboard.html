@@ -1,11 +1,92 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h2> <i class="fa-solid fa-vault fa-sm" style="color: #14a67b;"></i> All Vaults</h2>
+<div class="row align-items-center mb-4 mt-2">
+    <div class="col-md-6">
+        <h2> <i class="fa-solid fa-vault fa-sm" style="color: #14a67b;"></i> All Vaults</h2>
+    </div>
+    <div class="col-md-6">
+        <!-- Dashboard Global Search -->
+        <form action="{{ url_for('global_search') }}" method="GET" class="d-flex w-100 shadow-sm rounded-pill mt-3 mt-md-0 position-relative" id="liveSearchForm">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3" style="border-color: #ced4da;">
+                    <i class="fa-solid fa-search text-muted"></i>
+                </span>
+                <input type="text" name="q" id="liveSearchInput" class="form-control border-start-0 border-end-0 py-2" placeholder="Search across all your vaults..." value="{{ request.args.get('q', '') }}" style="border-color: #ced4da; box-shadow: none;" autocomplete="off">
+                <button class="btn btn-primary rounded-end-pill px-4" type="submit">
+                    Search
+                </button>
+            </div>
+            <!-- Live Search Results Dropdown -->
+            <div id="liveSearchResults" class="dropdown-menu w-100 shadow" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1050; max-height: 400px; overflow-y: auto;">
+                <!-- Filled via JS -->
+            </div>
+        </form>
+    </div>
+</div>
 <hr>
 
-<a href="{{ url_for('add_vault') }}" class="btn btn-primary mb-3"><i class="fa-solid fa-plus me-1"></i> Add New
+<a href="{{ url_for('add_vault') }}" class="btn btn-primary mb-4"><i class="fa-solid fa-plus me-1"></i> Add New
     Vault</a>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("liveSearchInput");
+    const searchResults = document.getElementById("liveSearchResults");
+
+    let timer;
+    searchInput.addEventListener("input", function() {
+        clearTimeout(timer);
+        const q = searchInput.value.trim();
+        if (q.length === 0) {
+            searchResults.style.display = "none";
+            return;
+        }
+
+        timer = setTimeout(() => {
+            fetch(`/search?q=${encodeURIComponent(q)}`, {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                searchResults.innerHTML = "";
+                if (data.passwords.length === 0) {
+                    searchResults.innerHTML = '<div class="p-3 text-muted">No results found for "'+q+'"</div>';
+                } else {
+                    let html = '<div class="list-group list-group-flush">';
+                    data.passwords.forEach(p => {
+                        html += `
+                            <a href="/vaults/${p.vault_id}#pwcell_${p.password_id}" class="list-group-item list-group-item-action flex-column align-items-start text-decoration-none text-dark">
+                                <div class="d-flex w-100 justify-content-between">
+                                  <h6 class="mb-1 text-primary"><i class="fa-solid fa-key me-2"></i>${p.service}</h6>
+                                  <small>${p.vault_name}</small>
+                                </div>
+                                <p class="mb-1 text-muted" style="font-size: 0.9em;">
+                                    User: <strong>${p.username}</strong>
+                                </p>
+                                <small class="text-muted border p-1 rounded bg-light" style="font-family: monospace;">${p.password}</small>
+                            </a>
+                        `;
+                    });
+                    html += '</div>';
+                    searchResults.innerHTML = html;
+                }
+                searchResults.style.display = "block";
+            })
+            .catch(err => console.error("Search error:", err));
+        }, 300); // 300ms debounce
+    });
+
+    // Close on click outside
+    document.addEventListener("click", function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = "none";
+        }
+    });
+});
+</script>
 
 <table class="table table-bordered shadow-sm">
     <thead class="table-dark">

@@ -7,4 +7,5 @@ click==8.1.7
 mysql-connector-python==8.2.0
 bcrypt==4.1.2
 cryptography==41.0.7
+python-dotenv==1.2.3
 

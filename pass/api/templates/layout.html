@@ -553,6 +553,7 @@
                         <ul class="dropdown-menu border-0 shadow-lg"
                             style="background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);">
                             <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">Users Panel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_logs') }}">Activity Logs</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_add_user') }}">Add User</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('trash_vaults') }}">Deleted Vaults</a></li>
                             <li>
@@ -600,6 +601,16 @@
 
                     {# Show logged-in user + logout #}
                     {% if session.get("username") %}
+                    <li class="nav-item me-3 d-flex align-items-center">
+                        <form action="{{ url_for('global_search') }}" method="GET" class="d-flex">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="q" class="form-control" placeholder="Search everywhere..." value="{{ request.args.get('q', '') }}" style="border-radius: 10px 0 0 10px;">
+                                <button class="btn btn-primary" type="submit" style="border-radius: 0 10px 10px 0;">
+                                    <i class="fa-solid fa-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </li>
                     <li class="nav-item me-3">
                         <span class="nav-link text-dark" style="opacity: 0.9;">
                             <i class="fa-regular fa-circle-user me-2"></i>{{ session.username }}

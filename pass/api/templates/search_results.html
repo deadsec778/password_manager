@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fa-solid fa-search fa-sm" style="color: #14a67b;"></i> Search Results</h2>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+</div>
+<hr>
+
+{% if query %}
+<p>Found {{ passwords|length }} results for: <strong>{{ query }}</strong></p>
+
+<table class="table table-bordered shadow-sm">
+    <thead class="table-dark">
+        <tr>
+            <th>Vault</th>
+            <th>Service</th>
+            <th>Username</th>
+            <th class="password-col">Password</th>
+            <th class="notes-col">Notes</th>
+            <th>Owner</th>
+            <th>Updated</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in passwords %}
+        <tr>
+            <td>{{ p.vault_name }}</td>
+            <td class="service-col">{{ p.service }}</td>
+            <td class="username-col">{{ p.username }}</td>
+            <td class="password-col password-wrapper">
+                <div class="password-cell" id="pwcell_search_{{ p.password_id }}">
+                    <span class="mask">••••••••</span>
+                    <span class="real">{{ p.password }}</span>
+                    <div class="pw-actions">
+                        <i class="fa-regular fa-copy copy-icon" title="Copy" onclick="copyPassword('search_{{ p.password_id }}', '{{ p.password }}')"></i>
+                        <button class="btn btn-sm btn-light border pw-eye-btn" onclick="togglePasswordRow('search_{{ p.password_id }}')">
+                            <i id="eye_search_{{ p.password_id }}" class="fa-regular fa-eye"></i>
+                        </button>
+                        {% if role == 'admin' %}
+                        <a href="{{ url_for('admin_edit_password', password_id=p.password_id) }}" class="btn btn-sm btn-outline-primary ms-1" title="Edit (Admin Only)">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+            <td class="notes-col">
+                <span class="long-text" title="{{ p.notes }}">{{ p.notes }}</span>
+            </td>
+            <td>{{ p.owner_username }}</td>
+            <td>{{ p.updated_at }}</td>
+        </tr>
+        {% endfor %}
+        {% if not passwords %}
+        <tr>
+            <td colspan="7" class="text-center">No passwords found.</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+{% else %}
+<p>Please enter a search query.</p>
+{% endif %}
+
+<script>
+    function copyPassword(pid, text) {
+        navigator.clipboard.writeText(text).then(() => {
+            const toast = document.createElement("div");
+            toast.className = "copy-toast";
+            toast.innerHTML = '<i class="fa-solid fa-check me-2"></i>Copied to clipboard';
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = "slideIn 0.3s ease-out reverse";
+                toast.style.opacity = "0";
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 2000);
+        });
+    }
+</script>
+{% endblock %}

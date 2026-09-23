@@ -3,6 +3,12 @@ import sys
 import os
 import uuid
 import functools
+import json
+import datetime
+from dotenv import load_dotenv
+
+# Load .env from the pass/ root (one level above api/)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 try:
     import pandas as pd
     PANDAS_AVAILABLE = True
@@ -32,7 +38,13 @@ from crypto.admin_cipher import get_admin_cipher  # global admin recovery cipher
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
-app.secret_key = os.urandom(32)  # testing only; replace with a safe secret in prod
+# Use FLASK_SECRET_KEY from .env; fallback to urandom so dev isn't strictly broken on missing .env
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(32))
+
+# Redis settings placeholder
+REDIS_ACTIVE = os.getenv("REDIS_ACTIVE", "false").lower() == "true"
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 # In-memory store for per-session cipher objects (testing only)
 cipher_store = {}
@@ -58,6 +70,39 @@ def clear_session_cipher():
     sid = session.get("sid")
     if sid and sid in cipher_store:
         del cipher_store[sid]
+
+def decrypt_password_for_view(role, admin_cipher, user_cipher, enc_admin, enc_user, owner_uid, pid, session_user_id):
+    if role == "admin" and admin_cipher:
+        try:
+            return admin_cipher.decrypt(enc_admin.encode()).decode()
+        except Exception:
+            return "🔒"
+    else:
+        pw = None
+        if enc_user:
+            try:
+                pw = user_cipher.decrypt(enc_user.encode()).decode()
+            except Exception:
+                pw = None
+        
+        # Migration fallback
+        if (not pw) and enc_admin and (owner_uid == session_user_id) and admin_cipher:
+            try:
+                recovered = admin_cipher.decrypt(enc_admin.encode()).decode()
+                reenc = user_cipher.encrypt(recovered.encode()).decode()
+                conn = get_connection()
+                cur = conn.cursor()
+                cur.execute("UPDATE passwords SET password_user_enc = %s WHERE password_id = %s", (reenc, pid))
+                conn.commit()
+                cur.close()
+                conn.close()
+                pw = recovered
+            except Exception:
+                pw = None
+                
+        if not pw:
+            pw = "🔒"
+        return pw
 
 # DB convenience
 def query_all(sql, params=()):
@@ -252,56 +297,7 @@ def view_vault(vault_id):
     for row in rows:
         pid, owner_uid, owner_username, service, uname, enc_user, enc_admin, url, notes, updated_at = row
         
-        print(f"DEBUG: Processing password ID {pid}, owner: {owner_username} (ID: {owner_uid})")
-        print(f"DEBUG - Admin cipher available: {admin_cipher is not None}")
-        print(f"DEBUG - enc_admin exists: {enc_admin is not None}")
-        print(f"DEBUG - enc_user exists: {enc_user is not None}")
-
-        # Prefer admin view when user is admin and admin cipher exists
-        if role == "admin" and admin_cipher:
-            try:
-                print(f"DEBUG: Attempting admin decryption for password {pid}")
-                pw = admin_cipher.decrypt(enc_admin.encode()).decode()
-                print(f"DEBUG: Admin decryption SUCCESS for password {pid}")
-            except Exception as e:
-                print(f"DEBUG: Admin decryption FAILED for password {pid}: {e}")
-                pw = "🔒"
-        else:
-            # Regular user: try to decrypt with user's cipher
-            pw = None
-            if enc_user:
-                try:
-                    print(f"DEBUG: Attempting user decryption for password {pid}")
-                    pw = user_cipher.decrypt(enc_user.encode()).decode()
-                    print(f"DEBUG: User decryption SUCCESS for password {pid}")
-                except Exception as e:
-                    print(f"DEBUG: User decryption FAILED for password {pid}: {e}")
-                    pw = None
-
-            # Migration fallback: if user ciphertext missing or invalid but admin ciphertext exists
-            # and this record belongs to the logged-in user, attempt to recover using admin cipher
-            # then re-encrypt for the user and update the DB so future accesses don't need fallback.
-            if (not pw) and (enc_admin) and (owner_uid == session.get("user_id")):
-                if admin_cipher:
-                    try:
-                        print(f"DEBUG: Attempting admin->user recovery for password {pid}")
-                        recovered = admin_cipher.decrypt(enc_admin.encode()).decode()
-                        # re-encrypt for user and persist
-                        reenc = user_cipher.encrypt(recovered.encode()).decode()
-                        conn = get_connection()
-                        cur = conn.cursor()
-                        cur.execute("UPDATE passwords SET password_user_enc = %s WHERE password_id = %s", (reenc, pid))
-                        conn.commit()
-                        cur.close()
-                        conn.close()
-                        pw = recovered
-                        print(f"DEBUG: Recovery+re-encrypt SUCCESS for password {pid}")
-                    except Exception as e:
-                        print(f"DEBUG: Recovery FAILED for password {pid}: {e}")
-                        pw = None
-
-            if not pw:
-                pw = "🔒"
+        pw = decrypt_password_for_view(role, admin_cipher, user_cipher, enc_admin, enc_user, owner_uid, pid, session.get("user_id"))
 
         passwords.append({
             "password_id": pid,
@@ -335,6 +331,209 @@ def view_vault(vault_id):
     total_pages=total_pages,
     role=role
 )
+
+@app.route("/search")
+@require_login
+def global_search():
+    user_id = session["user_id"]
+    role = session["role"]
+    user_cipher = get_cipher_for_session()
+    
+    try:
+        admin_cipher = get_admin_cipher()
+    except Exception:
+        admin_cipher = None
+
+    q = request.args.get("q", "").strip().lower()
+    
+    if not q:
+        return render_template("search_results.html", query=q, passwords=[], role=role)
+
+    # Permission check for global search
+    if role == "admin":
+        base_sql = """
+            SELECT p.password_id, p.user_id, u.username,
+                   p.service_name, p.username,
+                   p.password_user_enc, p.password_admin_enc,
+                   p.url, p.notes, p.updated_at,
+                   v.vault_name, v.vault_id
+            FROM passwords p 
+            JOIN users u ON p.user_id = u.user_id
+            JOIN vaults v ON p.vault_id = v.vault_id
+            WHERE p.is_deleted = 0 AND v.is_deleted = 0
+        """
+        params = ()
+    else:
+        base_sql = """
+            SELECT p.password_id, p.user_id, u.username, 
+                   p.service_name, p.username,
+                   p.password_user_enc, p.password_admin_enc,
+                   p.url, p.notes, p.updated_at,
+                   v.vault_name, v.vault_id
+            FROM passwords p
+            JOIN users u ON p.user_id = u.user_id
+            JOIN vaults v ON p.vault_id = v.vault_id
+            WHERE p.user_id = %s AND p.is_deleted = 0 AND v.is_deleted = 0
+        """
+        params = (user_id,)
+
+    rows = query_all(base_sql, params)
+    
+    # Decrypt and filter in one pass
+    passwords = []
+    for r in rows:
+        pid, owner_uid, owner_username, service, uname, enc_user, enc_admin, url, notes, updated_at, vault_name, vault_id = r
+        
+        # safely handle nones
+        owner_name_str = (owner_username or "").lower()
+        service_str = (service or "").lower()
+        username_str = (uname or "").lower()
+        url_str = (url or "").lower()
+        notes_str = (notes or "").lower()
+        vault_name_str = (vault_name or "").lower()
+        
+        pw = decrypt_password_for_view(role, admin_cipher, user_cipher, enc_admin, enc_user, owner_uid, pid, session.get("user_id"))
+        pw_str = (pw or "").lower()
+        
+        if (q in owner_name_str or q in service_str or q in username_str or 
+            q in url_str or q in notes_str or q in vault_name_str or q in pw_str):
+            
+            passwords.append({
+                "password_id": pid,
+                "owner_username": owner_username,
+                "service": service,
+                "username": uname,
+                "password": pw,
+                "url": url,
+                "notes": notes,
+                "updated_at": updated_at,
+                "vault_name": vault_name,
+                "vault_id": vault_id
+            })
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return {"passwords": passwords, "role": role}
+
+    return render_template("search_results.html", query=q, passwords=passwords, role=role)
+
+@app.route("/admin/passwords/<int:password_id>/edit", methods=["GET", "POST"])
+@require_login
+def admin_edit_password(password_id):
+    if session.get("role") != "admin":
+        flash("Admins only.", "danger")
+        return redirect(url_for("dashboard"))
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    if request.method == "GET":
+        cur.execute("SELECT service_name, username, url, notes, password_admin_enc FROM passwords WHERE password_id = %s", (password_id,))
+        row = cur.fetchone()
+        if not row:
+            flash("Password not found.", "danger")
+            return redirect(url_for("dashboard"))
+            
+        old_pw = ""
+        try:
+            admin_cipher = get_admin_cipher()
+            if row[4] and admin_cipher:
+                old_pw = admin_cipher.decrypt(row[4].encode()).decode()
+        except:
+            old_pw = "[Cannot decrypt]"
+        
+        p = {
+            "service_name": row[0],
+            "username": row[1],
+            "url": row[2],
+            "notes": row[3],
+            "password": old_pw
+        }
+        cur.close()
+        conn.close()
+        return render_template("admin_edit_password.html", p=p)
+        
+    elif request.method == "POST":
+        service = request.form.get("service_name", "").strip()
+        username = request.form.get("username", "").strip()
+        url_field = request.form.get("url", "").strip()
+        notes = request.form.get("notes", "").strip()
+        new_password = request.form.get("password", "")
+        
+        try:
+            admin_cipher = get_admin_cipher()
+        except:
+            admin_cipher = None
+            
+        cur.execute("SELECT password_admin_enc FROM passwords WHERE password_id = %s", (password_id,))
+        old_row = cur.fetchone()
+        old_pw = ""
+        if old_row and old_row[0] and admin_cipher:
+            try:
+                old_pw = admin_cipher.decrypt(old_row[0].encode()).decode()
+            except:
+                old_pw = "[Could not decrypt]"
+            
+        if new_password and admin_cipher:
+            enc_admin = admin_cipher.encrypt(new_password.encode()).decode()
+            cur.execute("""
+                UPDATE passwords 
+                SET service_name=%s, username=%s, url=%s, notes=%s, password_admin_enc=%s, password_user_enc=NULL
+                WHERE password_id=%s
+            """, (service, username, url_field, notes, enc_admin, password_id))
+        else:
+            cur.execute("""
+                UPDATE passwords 
+                SET service_name=%s, username=%s, url=%s, notes=%s
+                WHERE password_id=%s
+            """, (service, username, url_field, notes, password_id))
+            
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        log_entry = {
+            "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "admin": session.get('username'),
+            "password_id": password_id,
+            "service": service,
+            "old_password": old_pw if old_pw else "[No Previous Password Found]",
+            "new_password": new_password if new_password else "[Unchanged]",
+            "local_ip": request.remote_addr,
+            "public_ip": request.headers.get("X-Forwarded-For", request.remote_addr)
+        }
+        
+        with open("admin_audit.jsonl", "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+        
+        flash("Password updated successfully.", "success")
+        return redirect(url_for("global_search"))
+
+@app.route("/admin/logs")
+@require_login
+def admin_logs():
+    if session.get("role") != "admin":
+        flash("Admins only.", "danger")
+        return redirect(url_for("dashboard"))
+    
+    logs = []
+    if os.path.exists("admin_audit.jsonl"):
+        with open("admin_audit.jsonl", "r") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        logs.append(json.loads(line))
+                    except:
+                        pass
+                        
+    # For legacy logs
+    if os.path.exists("admin_audit.log"):
+        with open("admin_audit.log", "r") as f:
+            for line in f:
+                if line.strip():
+                    logs.append({"raw_legacy": line.strip()})
+            
+    logs.reverse()
+    return render_template("admin_logs.html", logs=logs)
 
 # Add vault
 @app.route("/vaults/add", methods=["GET", "POST"])

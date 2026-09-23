@@ -68,6 +68,11 @@
                                         aria-label="Toggle password visibility">
                                     <i id="eye_{{ p.password_id }}" class="fa-regular fa-eye"></i>
                                 </button>
+                                {% if role == 'admin' %}
+                                <a href="{{ url_for('admin_edit_password', password_id=p.password_id) }}" class="btn btn-sm btn-outline-primary ms-1" style="z-index: 2; position: relative;" title="Edit (Admin Only)">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
+                                {% endif %}
                             </div>
 
                         </div>
@@ -129,6 +134,31 @@
 
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    if(window.location.hash) {
+        const hash = window.location.hash;
+        if(hash.startsWith("#pwcell_")) {
+            const targetCell = document.querySelector(hash);
+            if(targetCell) {
+                const row = targetCell.closest("tr");
+                if(row) {
+                    row.style.transition = "background-color 0.5s ease";
+                    row.style.backgroundColor = "#fff3cd"; // highlight color (Bootstrap warning light)
+                    
+                    setTimeout(() => {
+                        row.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 100);
+
+                    setTimeout(() => {
+                        row.style.transition = "background-color 2s ease";
+                        row.style.backgroundColor = "";
+                    }, 4000);
+                }
+            }
+        }
+    }
+});
+
 function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'copy-toast';
