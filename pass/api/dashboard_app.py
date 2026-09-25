@@ -5,6 +5,8 @@ import uuid
 import functools
 import json
 import datetime
+import secrets
+import requests
 from dotenv import load_dotenv
 
 # Load .env from the pass/ root (one level above api/)
@@ -190,6 +192,126 @@ def logout():
     session.clear()
     flash("Logged out.", "info")
     return redirect(url_for("login"))
+
+# --- Google OAuth Routes ---
+@app.route("/login/google")
+def google_login():
+    state = secrets.token_urlsafe(16)
+    session["oauth_state"] = state
+    
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/auth"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&response_type=code"
+        f"&scope=openid email profile"
+        f"&state={state}"
+    )
+    return redirect(auth_url)
+
+@app.route("/callback/google")
+def google_callback():
+    state = request.args.get("state")
+    if state != session.get("oauth_state"):
+        flash("Invalid OAuth state.", "danger")
+        return redirect(url_for("login"))
+    
+    code = request.args.get("code")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    
+    # 1. Exchange code for token
+    token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    })
+    
+    if token_resp.status_code != 200:
+        flash("Failed to authenticate with Google.", "danger")
+        return redirect(url_for("login"))
+        
+    token_json = token_resp.json()
+    id_token = token_json.get("id_token")
+    
+    # 2. Verify token (simplest way: use userinfo endpoint with access_token)
+    access_token = token_json.get("access_token")
+    user_info_resp = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+    
+    if user_info_resp.status_code != 200:
+        flash("Failed to get user info from Google.", "danger")
+        return redirect(url_for("login"))
+    
+    user_info = user_info_resp.json()
+    google_sub = user_info["id"]
+    email = user_info["email"]
+    name = user_info["name"]
+    
+    # 3. DB logic: find or create google_db/user
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # Check if google account exists
+    cur.execute("SELECT user_id FROM google_db WHERE google_subject = %s", (google_sub,))
+    google_record = cur.fetchone()
+    
+    if google_record:
+        user_id = google_record[0]
+        cur.execute("SELECT username, role FROM users WHERE user_id = %s", (user_id,))
+        user_record = cur.fetchone()
+        username = user_record[0]
+        role = user_record[1]
+    else:
+        # Create or link user
+        cur.execute("SELECT user_id, username, role FROM users WHERE email = %s", (email,))
+        user_record = cur.fetchone()
+        
+        if user_record:
+            # Link existing user
+            user_id, username, role = user_record
+        else:
+            # Create new user
+            username = email.split("@")[0] # Simple username
+            # We need a dummy password hash
+            import bcrypt
+            hashed = bcrypt.hashpw(secrets.token_urlsafe(16).encode(), bcrypt.gensalt()).decode()
+            cur.execute("INSERT INTO users (username, email, master_password_hash, role) VALUES (%s, %s, %s, 'user')", 
+                        (username, email, hashed))
+            user_id = cur.lastrowid
+            role = 'user'
+            
+        # Create google link
+        cur.execute("INSERT INTO google_db (user_id, google_subject, google_email, google_name) VALUES (%s, %s, %s, %s)",
+                    (user_id, google_sub, email, name))
+        conn.commit()
+
+    # 4. Session setup
+    sid = str(uuid.uuid4())
+    session["sid"] = sid
+    session["user_id"] = user_id
+    session["username"] = username
+    session["role"] = role
+    
+    # Since OAuth users don't have a master key for encryption initially, we'll need to check
+    # how to handle their vault/passwords. 
+    # For now, we set them up with NO cipher or handle migration in helper
+    # The requirement is that they have access to their dashboard, but existing 
+    # encryption logic might break without a cipher.
+    
+    cur.close()
+    conn.close()
+    
+    flash("Logged in with Google.", "success")
+    return redirect(url_for("dashboard"))
+
 
 # @app.route("/dashboard")
 # @require_login

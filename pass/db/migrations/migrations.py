@@ -49,8 +49,10 @@ def main():
         files = ["001_schema.sql"]
     elif choice == "2":
         files = ["002_initial_data.sql"]
-    else:
+    elif choice == "3":
         files = ["001_schema.sql", "002_initial_data.sql"]
+    else:
+        files = ["001_schema.sql", "002_initial_data.sql", "003_google_oauth.sql"]
 
     print("\n🚀 Starting migrations...\n")
 
