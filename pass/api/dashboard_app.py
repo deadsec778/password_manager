@@ -21,7 +21,7 @@ from io import TextIOWrapper
 
 from flask import (
     Flask, request, render_template, redirect,
-    url_for, flash, session, abort
+    url_for, flash, session, abort, send_from_directory
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -536,6 +536,14 @@ def admin_logs():
     return render_template("admin_logs.html", logs=logs)
 
 # Add vault
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory("templates", "manifest.json")
+
+@app.route("/sw.js")
+def sw():
+    return send_from_directory("templates", "sw.js")
+
 @app.route("/vaults/add", methods=["GET", "POST"])
 @require_login
 def add_vault():
