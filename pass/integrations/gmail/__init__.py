@@ -13,6 +13,8 @@ from .config import (
     APP_URL,
     OTP_EXPIRY_MINUTES,
     is_gmail_configured,
+    is_gmail_enabled,
+    is_gmail_active,
 )
 from .email_service import (
     GmailSender,
@@ -41,6 +43,8 @@ __all__ = [
     "APP_URL",
     "OTP_EXPIRY_MINUTES",
     "is_gmail_configured",
+    "is_gmail_enabled",
+    "is_gmail_active",
     "GmailSender",
     "default_sender",
     "send_registration_otp_email",

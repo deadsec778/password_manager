@@ -22,6 +22,27 @@ OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 OTP_DIGITS = int(os.getenv("OTP_DIGITS", "6"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
 
+def is_gmail_enabled() -> bool:
+    """Check if Gmail integration is enabled globally and for the Gmail module."""
+    try:
+        from integrations.config import is_gmail_enabled as _check_gmail
+        return _check_gmail()
+    except Exception:
+        load_dotenv(ENV_PATH)
+        master = os.getenv("INTEGRATIONS_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+        module_en = os.getenv("GMAIL_INTEGRATION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+        return master and module_en
+
+
 def is_gmail_configured() -> bool:
     """Check if Gmail SMTP credentials are configured in .env."""
-    return bool(GMAIL_SENDER_EMAIL and GMAIL_APP_PASSWORD)
+    load_dotenv(ENV_PATH)
+    sender = os.getenv("GMAIL_SENDER_EMAIL", os.getenv("GMAIL_USER", "")).strip().strip('"').strip("'")
+    password = os.getenv("GMAIL_APP_PASSWORD", "").strip().strip('"').strip("'").replace(" ", "")
+    return bool(sender and password)
+
+
+def is_gmail_active() -> bool:
+    """Check if Gmail integration is both enabled and credentials are configured."""
+    return is_gmail_enabled() and is_gmail_configured()
+

@@ -37,7 +37,14 @@ from users.register_user import register_user
 from users.update_user_password import update_user_password
 from db.connection import get_connection
 from crypto.crypto_key import get_cipher_for_user
-from crypto.admin_cipher import get_admin_cipher  # global admin recovery cipher
+from crypto.admin_cipher import get_admin_cipher
+from integrations import (
+    is_integrations_master_enabled,
+    is_google_oauth_enabled,
+    is_gmail_enabled,
+    is_feature_enabled,
+    get_integrations_status,
+)
 from integrations.gmail import (
     send_registration_otp_email,
     send_password_reset_otp_email,
@@ -50,6 +57,15 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 # Use FLASK_SECRET_KEY from .env; fallback to urandom so dev isn't strictly broken on missing .env
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(32))
+
+@app.context_processor
+def inject_integrations_context():
+    return {
+        "integrations_enabled": is_integrations_master_enabled(),
+        "google_oauth_enabled": is_google_oauth_enabled(),
+        "gmail_integration_enabled": is_gmail_enabled(),
+        "integrations_status": get_integrations_status(),
+    }
 
 # Redis settings placeholder
 REDIS_ACTIVE = os.getenv("REDIS_ACTIVE", "false").lower() == "true"
@@ -134,7 +150,7 @@ def query_one(sql, params=()):
     return row
 def admin_exists():
     row = query_one("SELECT COUNT(*) FROM users WHERE role = 'admin'")
-    return row[0] > 0
+    return bool(row and row[0] > 0)
 # -------------------------
 # Routes
 # -------------------------
@@ -189,6 +205,15 @@ def signup():
         # if no admin exists, first signup becomes admin
         role = "admin" if is_first_admin else "user"
 
+        # Local Mode: If Gmail integration is disabled, create account immediately without OTP
+        if not is_gmail_enabled():
+            success, reg_msg = register_user(username, email, password, role)
+            if not success:
+                flash(f"Could not create account: {reg_msg}", "danger")
+                return render_template("signup.html", is_first_admin=is_first_admin, username=username, email=email)
+            flash("Account created successfully (Local Mode)! You can now log in.", "success")
+            return redirect(url_for("login"))
+
         payload = {
             "username": username,
             "email": email,
@@ -227,6 +252,10 @@ def signup():
 
 @app.route("/signup/verify", methods=["GET", "POST"])
 def verify_signup_otp():
+    if not is_gmail_enabled():
+        flash("Email verification is disabled in local mode.", "info")
+        return redirect(url_for("login"))
+
     email = session.get("pending_signup_email")
     if not email:
         flash("No pending registration found. Please fill out the registration form.", "warning")
@@ -269,6 +298,10 @@ def verify_signup_otp():
 
 @app.route("/signup/resend", methods=["POST"])
 def resend_signup_otp():
+    if not is_gmail_enabled():
+        flash("Email service is disabled in local mode.", "warning")
+        return redirect(url_for("login"))
+
     email = session.get("pending_signup_email")
     username = session.get("pending_signup_username", "User")
     payload = session.get("pending_signup_payload")
@@ -297,6 +330,12 @@ def resend_signup_otp():
 
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
+    if not is_gmail_enabled():
+        if request.method == "POST":
+            flash("Email integration is disabled in local mode. Please contact your system administrator to reset credentials.", "warning")
+            return render_template("forgot_password.html", identity=request.form.get("identity", ""))
+        return render_template("forgot_password.html")
+
     if request.method == "POST":
         identity = request.form.get("identity", "").strip()
         if not identity:
@@ -365,6 +404,10 @@ def mask_email(email: str) -> str:
 
 @app.route("/forgot-password/verify", methods=["GET", "POST"])
 def verify_forgot_password_otp():
+    if not is_gmail_enabled():
+        flash("Email service is disabled in local mode.", "warning")
+        return redirect(url_for("login"))
+
     email = session.get("reset_email")
     user_id = session.get("reset_user_id")
     username = session.get("reset_username")
@@ -460,6 +503,10 @@ def verify_forgot_password_otp():
 
 @app.route("/forgot-password/resend", methods=["POST"])
 def resend_forgot_password_otp():
+    if not is_gmail_enabled():
+        flash("Email service is disabled in local mode.", "warning")
+        return redirect(url_for("login"))
+
     email = session.get("reset_email")
     user_id = session.get("reset_user_id")
     username = session.get("reset_username", "User")
@@ -500,6 +547,10 @@ def logout():
 # --- Google OAuth Routes ---
 @app.route("/login/google")
 def google_login():
+    if not is_google_oauth_enabled():
+        flash("Google OAuth login is disabled in local mode.", "warning")
+        return redirect(url_for("login"))
+
     state = secrets.token_urlsafe(16)
     session["oauth_state"] = state
     
@@ -518,6 +569,9 @@ def google_login():
 
 @app.route("/callback/google")
 def google_callback():
+    if not is_google_oauth_enabled():
+        flash("Google OAuth login is disabled in local mode.", "warning")
+        return redirect(url_for("login"))
     state = request.args.get("state")
     if state != session.get("oauth_state"):
         flash("Invalid OAuth state.", "danger")

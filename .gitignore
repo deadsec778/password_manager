@@ -1,9 +1,29 @@
+# Environment & Secrets
 .env
+pass/.env
+!.env.example
+!.env.dummy
+!pass/.env.example
+!pass/.env.dummy
 *.key
+*client_secret*
+
+# Database Dumps (Ignore general SQL backups, allow migrations)
 *.sql
+!pass/db/migrations/*.sql
+
+# Virtual Environments
 venv/
 .venv/
 pass_venv/
+
+# Python Cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Archives & Deprecated Old Code
 pass_og_old/

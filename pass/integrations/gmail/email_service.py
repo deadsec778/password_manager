@@ -21,6 +21,7 @@ from .config import (
     GMAIL_USE_SSL,
     APP_NAME,
     is_gmail_configured,
+    is_gmail_enabled,
     OTP_EXPIRY_MINUTES,
 )
 from .templates import (
@@ -38,7 +39,7 @@ def _get_current_credentials() -> Tuple[str, str, str, int]:
     """Dynamically read current credentials from environment."""
     from dotenv import load_dotenv
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
-    load_dotenv(env_path, override=True)
+    load_dotenv(env_path)
 
     sender = os.getenv("GMAIL_SENDER_EMAIL", os.getenv("GMAIL_USER", "")).strip().strip('"').strip("'")
     password = os.getenv("GMAIL_APP_PASSWORD", "").strip().strip('"').strip("'").replace(" ", "")
@@ -71,6 +72,8 @@ class GmailSender:
         return sender, pw, host, port
 
     def is_ready(self) -> bool:
+        if not is_gmail_enabled():
+            return False
         sender, pw, _, _ = self.get_config()
         return bool(sender and pw)
 
@@ -84,6 +87,11 @@ class GmailSender:
         """
         Sends an email using Gmail SMTP with automatic TLS/SSL fallback.
         """
+        if not is_gmail_enabled():
+            err = "Gmail integration is disabled in configuration."
+            logger.info(err)
+            return False, err
+
         to_email = to_email.strip().lower()
         if not to_email:
             return False, "Recipient email address is required."
