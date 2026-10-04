@@ -10,7 +10,12 @@
           <input class="form-control" name="username" required />
         </div>
         <div class="mb-3">
-          <label class="form-label">Password</label>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label mb-0">Password</label>
+            <a href="{{ url_for('forgot_password') }}" class="text-decoration-none small text-primary fw-semibold">
+              Forgot password?
+            </a>
+          </div>
           <div class="input-group">
             <input class="form-control" type="password" name="password" id="login_pw" required />
 

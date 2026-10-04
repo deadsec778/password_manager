@@ -34,9 +34,17 @@ if ROOT_DIR not in sys.path:
 
 from users.login_user import login_user
 from users.register_user import register_user
+from users.update_user_password import update_user_password
 from db.connection import get_connection
 from crypto.crypto_key import get_cipher_for_user
 from crypto.admin_cipher import get_admin_cipher  # global admin recovery cipher
+from integrations.gmail import (
+    send_registration_otp_email,
+    send_password_reset_otp_email,
+    send_password_changed_notification,
+    default_otp_manager,
+    is_gmail_configured,
+)
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
@@ -160,29 +168,325 @@ def signup():
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
         if not username or not email or not password:
             flash("Please fill all fields.", "warning")
             return render_template("signup.html", is_first_admin=is_first_admin)
 
-        # if no admin exists, first signup becomes admin
-        if is_first_admin:
-            role = "admin"
-        else:
-            role = "user"
-
-        success, msg = register_user(username, email, password, role)
-        if not success:
-            # registration failed (duplicate username/email or DB error)
-            flash(f"Could not create account: {msg}", "danger")
+        # Check for existing username or email before sending OTP
+        existing_user = query_one("SELECT user_id FROM users WHERE username = %s AND is_deleted = 0", (username,))
+        if existing_user:
+            flash(f"Username '{username}' is already taken. Please choose another.", "danger")
             return render_template("signup.html", is_first_admin=is_first_admin, username=username, email=email)
 
-        flash(f"Account created successfully!", "success")
-        return redirect(url_for("login"))
+        existing_email = query_one("SELECT user_id FROM users WHERE email = %s AND is_deleted = 0", (email,))
+        if existing_email:
+            flash(f"Email '{email}' is already registered. Please log in or reset your password.", "danger")
+            return render_template("signup.html", is_first_admin=is_first_admin, username=username, email=email)
+
+        # if no admin exists, first signup becomes admin
+        role = "admin" if is_first_admin else "user"
+
+        payload = {
+            "username": username,
+            "email": email,
+            "password": password,
+            "role": role,
+        }
+
+        # Generate registration OTP
+        ok, otp_code, _ = default_otp_manager.create_otp(
+            email=email,
+            purpose="registration",
+            payload=payload
+        )
+
+        if not ok:
+            flash(f"Could not initiate registration: {otp_code}", "danger")
+            return render_template("signup.html", is_first_admin=is_first_admin, username=username, email=email)
+
+        # Send email via Gmail integration
+        send_ok, send_msg = send_registration_otp_email(to_email=email, username=username, otp_code=otp_code)
+
+        # Save pending signup in session
+        session["pending_signup_email"] = email
+        session["pending_signup_username"] = username
+        session["pending_signup_payload"] = payload
+
+        if send_ok:
+            flash(f"A 6-digit verification code has been sent to {email}. Please enter it below to activate your account.", "info")
+        else:
+            flash(f"Failed to send email to {email}: {send_msg}", "danger")
+
+        return redirect(url_for("verify_signup_otp"))
 
     return render_template("signup.html", is_first_admin=is_first_admin)
+
+
+@app.route("/signup/verify", methods=["GET", "POST"])
+def verify_signup_otp():
+    email = session.get("pending_signup_email")
+    if not email:
+        flash("No pending registration found. Please fill out the registration form.", "warning")
+        return redirect(url_for("signup"))
+
+    if request.method == "POST":
+        otp_code = request.form.get("otp_code", "").strip()
+        is_valid, msg, payload, _ = default_otp_manager.verify_otp(email, otp_code, purpose="registration")
+
+        if not is_valid:
+            flash(msg, "danger")
+            return render_template("signup_verify.html", email=email)
+
+        # Retrieve user details from payload or session
+        reg_data = payload or session.get("pending_signup_payload", {})
+        username = reg_data.get("username")
+        user_email = reg_data.get("email") or email
+        password = reg_data.get("password")
+        role = reg_data.get("role", "user")
+
+        if not username or not password:
+            flash("Registration session data missing. Please try signing up again.", "danger")
+            return redirect(url_for("signup"))
+
+        success, reg_msg = register_user(username, user_email, password, role)
+        if not success:
+            flash(f"Could not create account: {reg_msg}", "danger")
+            return redirect(url_for("signup"))
+
+        # Clear pending signup session keys
+        session.pop("pending_signup_email", None)
+        session.pop("pending_signup_username", None)
+        session.pop("pending_signup_payload", None)
+
+        flash("🎉 Account verified and created successfully! You can now log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("signup_verify.html", email=email)
+
+
+@app.route("/signup/resend", methods=["POST"])
+def resend_signup_otp():
+    email = session.get("pending_signup_email")
+    username = session.get("pending_signup_username", "User")
+    payload = session.get("pending_signup_payload")
+
+    if not email:
+        flash("No active signup session. Please start registration.", "warning")
+        return redirect(url_for("signup"))
+
+    ok, otp_code, _ = default_otp_manager.create_otp(
+        email=email,
+        purpose="registration",
+        payload=payload
+    )
+
+    if ok:
+        send_ok, send_msg = send_registration_otp_email(to_email=email, username=username, otp_code=otp_code)
+        if send_ok:
+            flash(f"A new verification code has been sent to {email}.", "info")
+        else:
+            flash(f"Failed to send email: {send_msg}", "danger")
+    else:
+        flash("Failed to generate a new verification code. Please try again.", "danger")
+
+    return redirect(url_for("verify_signup_otp"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        identity = request.form.get("identity", "").strip()
+        if not identity:
+            flash("Please enter your username or email address.", "warning")
+            return render_template("forgot_password.html", identity=identity)
+
+        user = query_one(
+            """
+            SELECT user_id, username, email, role, status 
+            FROM users 
+            WHERE (username = %s OR email = %s) AND is_deleted = 0
+            """,
+            (identity, identity)
+        )
+
+        if not user:
+            flash("No active account found matching that username or email.", "danger")
+            return render_template("forgot_password.html", identity=identity)
+
+        user_id, username, email, role, status = user
+
+        if status == "disabled":
+            flash("This account has been disabled. Please contact your administrator.", "danger")
+            return render_template("forgot_password.html", identity=identity)
+
+        payload = {"user_id": user_id, "username": username, "email": email, "role": role}
+        ok, otp_code, _ = default_otp_manager.create_otp(
+            email=email,
+            purpose="password_reset",
+            user_id=user_id,
+            payload=payload
+        )
+
+        if not ok:
+            flash("Could not generate security code. Please try again.", "danger")
+            return render_template("forgot_password.html", identity=identity)
+
+        # Send password reset / one-time login OTP
+        send_ok, send_msg = send_password_reset_otp_email(to_email=email, username=username, otp_code=otp_code)
+
+        session["reset_email"] = email
+        session["reset_user_id"] = user_id
+        session["reset_username"] = username
+        session["reset_role"] = role
+
+        if send_ok:
+            flash(f"A one-time security code has been sent to your registered email ({mask_email(email)}).", "info")
+        else:
+            flash(f"Failed to send email: {send_msg}", "danger")
+
+        return redirect(url_for("verify_forgot_password_otp"))
+
+    return render_template("forgot_password.html")
+
+
+def mask_email(email: str) -> str:
+    if not email or "@" not in email:
+        return email
+    user_part, domain_part = email.split("@", 1)
+    if len(user_part) <= 2:
+        masked_user = user_part[0] + "*"
+    else:
+        masked_user = user_part[0] + "*" * (len(user_part) - 2) + user_part[-1]
+    return f"{masked_user}@{domain_part}"
+
+
+@app.route("/forgot-password/verify", methods=["GET", "POST"])
+def verify_forgot_password_otp():
+    email = session.get("reset_email")
+    user_id = session.get("reset_user_id")
+    username = session.get("reset_username")
+    role = session.get("reset_role")
+
+    if not email or not user_id:
+        flash("No active password recovery session. Please enter your username or email.", "warning")
+        return redirect(url_for("forgot_password"))
+
+    masked = mask_email(email)
+
+    if request.method == "POST":
+        action_type = request.form.get("action_type", "onetime_login")
+        otp_code = request.form.get("otp_code", "").strip()
+
+        is_valid, msg, payload, verified_uid = default_otp_manager.verify_otp(
+            email, otp_code, purpose="password_reset"
+        )
+
+        if not is_valid:
+            flash(msg, "danger")
+            return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+        actual_user_id = verified_uid or user_id
+        actual_username = (payload and payload.get("username")) or username
+        actual_role = (payload and payload.get("role")) or role
+
+        if action_type == "onetime_login":
+            sid = str(uuid.uuid4())
+            session["sid"] = sid
+            session["user_id"] = actual_user_id
+            session["username"] = actual_username
+            session["role"] = actual_role
+            cipher_store[sid] = None
+
+            # Clear recovery session vars
+            session.pop("reset_email", None)
+            session.pop("reset_user_id", None)
+            session.pop("reset_username", None)
+            session.pop("reset_role", None)
+
+            flash("✅ Logged in successfully via one-time security code.", "success")
+            return redirect(url_for("dashboard"))
+
+        elif action_type == "reset_password":
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if not new_password or not confirm_password:
+                flash("Please enter and confirm your new password.", "warning")
+                return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+            if new_password != confirm_password:
+                flash("Passwords do not match. Please re-enter.", "danger")
+                return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+            if len(new_password) < 6:
+                flash("New master password must be at least 6 characters.", "warning")
+                return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+            update_ok, update_msg = update_user_password(actual_user_id, new_password)
+            if not update_ok:
+                flash(f"Failed to update password: {update_msg}", "danger")
+                return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+            # Send alert email
+            send_password_changed_notification(to_email=email, username=actual_username)
+
+            # Derive cipher with the new password and log user in
+            try:
+                cipher = get_cipher_for_user(actual_user_id, new_password)
+            except Exception:
+                cipher = None
+
+            sid = str(uuid.uuid4())
+            session["sid"] = sid
+            session["user_id"] = actual_user_id
+            session["username"] = actual_username
+            session["role"] = actual_role
+            if cipher:
+                cipher_store[sid] = cipher
+
+            session.pop("reset_email", None)
+            session.pop("reset_user_id", None)
+            session.pop("reset_username", None)
+            session.pop("reset_role", None)
+
+            flash("🎉 Master password updated successfully! You are now logged in.", "success")
+            return redirect(url_for("dashboard"))
+
+    return render_template("forgot_password_verify.html", email=email, masked_email=masked)
+
+
+@app.route("/forgot-password/resend", methods=["POST"])
+def resend_forgot_password_otp():
+    email = session.get("reset_email")
+    user_id = session.get("reset_user_id")
+    username = session.get("reset_username", "User")
+    role = session.get("reset_role", "user")
+
+    if not email or not user_id:
+        flash("No active recovery request. Please enter your email again.", "warning")
+        return redirect(url_for("forgot_password"))
+
+    payload = {"user_id": user_id, "username": username, "email": email, "role": role}
+    ok, otp_code, _ = default_otp_manager.create_otp(
+        email=email,
+        purpose="password_reset",
+        user_id=user_id,
+        payload=payload
+    )
+
+    if ok:
+        send_ok, send_msg = send_password_reset_otp_email(to_email=email, username=username, otp_code=otp_code)
+        if send_ok:
+            flash(f"A new security code has been sent to your email.", "info")
+        else:
+            flash(f"Failed to send email: {send_msg}", "danger")
+    else:
+        flash("Failed to generate a new security code.", "danger")
+
+    return redirect(url_for("verify_forgot_password_otp"))
 
 
 @app.route("/logout")

@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card p-4 shadow-sm border-0" style="background: var(--card-bg); backdrop-filter: blur(16px); border-radius: 16px;">
+      <div class="text-center mb-4">
+        <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-3" style="width: 64px; height: 64px; font-size: 28px;">
+          <i class="fa-solid fa-envelope-circle-check"></i>
+        </div>
+        <h3 class="fw-bold text-dark mb-1">Verify Your Email</h3>
+        <p class="text-muted small mb-0">
+          We sent a 6-digit verification code to<br>
+          <strong class="text-primary">{{ email }}</strong>
+        </p>
+      </div>
+
+      <form method="POST" action="{{ url_for('verify_signup_otp') }}" autocomplete="off">
+        <div class="mb-4">
+          <label class="form-label text-center d-block fw-semibold text-muted small text-uppercase" style="letter-spacing: 1px;">Enter Verification Code</label>
+          <div class="d-flex justify-content-center">
+            <input 
+              type="text" 
+              name="otp_code" 
+              id="otp_code"
+              maxlength="6" 
+              pattern="\d{6}"
+              inputmode="numeric"
+              required 
+              placeholder="••••••" 
+              class="form-control form-control-lg text-center fw-bold"
+              style="font-size: 32px; letter-spacing: 10px; max-width: 260px; font-family: monospace; border-radius: 12px; border: 2px solid #93c5fd;"
+              autofocus
+            />
+          </div>
+          <div class="form-text text-center mt-2 small text-muted">
+            Code expires in 10 minutes.
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100 mb-3 shadow-sm" style="border-radius: 10px; font-weight: 600;">
+          <i class="fa-solid fa-check me-2"></i> Verify & Complete Registration
+        </button>
+      </form>
+
+      <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+        <a href="{{ url_for('signup') }}" class="text-muted text-decoration-none small">
+          <i class="fa-solid fa-arrow-left me-1"></i> Change Email
+        </a>
+
+        <form method="POST" action="{{ url_for('resend_signup_otp') }}" class="d-inline">
+          <button type="submit" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" id="resend_btn">
+            <i class="fa-solid fa-rotate-right me-1"></i> Resend Code
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
